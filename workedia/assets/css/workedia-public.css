@@ -470,21 +470,6 @@
 #ticket-thread-body::-webkit-scrollbar-thumb { background: #cbd5e0; border-radius: 10px; }
 #ticket-thread-body::-webkit-scrollbar-thumb:hover { background: #a0aec0; }
 
-/* Digital Service Cards */
-.workedia-service-card {
-    transition: all 0.3s ease;
-}
-.workedia-service-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 30px rgba(0,0,0,0.08) !important;
-    border-color: var(--workedia-primary-color) !important;
-}
-.workedia-service-card .workedia-btn {
-    opacity: 0.9;
-}
-.workedia-service-card .workedia-btn:hover {
-    opacity: 1;
-}
 
 /* Public Pages Styling */
 .workedia-public-page {

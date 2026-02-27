@@ -27,7 +27,6 @@ class Workedia_Settings {
         $default = array(
             'tab_summary' => 'لوحة المعلومات',
             'tab_users_management' => 'إدارة مستخدمي النظام',
-            'tab_surveys' => 'استطلاعات الرأي',
             'tab_global_settings' => 'إعدادات النظام',
             'tab_my_profile' => 'ملفي الشخصي'
         );
