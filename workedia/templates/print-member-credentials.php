@@ -36,7 +36,7 @@ $workedia = Workedia_Settings::get_workedia_info();
             <tr>
                 <th style="width: 50px;">#</th>
                 <th>اسم العضو</th>
-                <th>الرقم القومي</th>
+                <th>اسم المستخدم</th>
                 <th>كلمة المرور المؤقتة</th>
             </tr>
         </thead>
@@ -50,7 +50,7 @@ $workedia = Workedia_Settings::get_workedia_info();
                 <tr>
                     <td><?php echo $count++; ?></td>
                     <td style="font-weight: 700;"><?php echo esc_html($s->name); ?></td>
-                    <td class="code"><?php echo esc_html($s->national_id); ?></td>
+                    <td class="code"><?php echo esc_html($s->username); ?></td>
                     <td class="code"><?php echo esc_html($pass); ?></td>
                 </tr>
             <?php endforeach; ?>
@@ -58,7 +58,7 @@ $workedia = Workedia_Settings::get_workedia_info();
     </table>
 
     <div class="footer">
-        * يتم استخدام الرقم القومي كاسم مستخدم للدخول للنظام.<br>
+        * يتم استخدام اسم المستخدم للدخول للنظام.<br>
         * ينصح بتغيير كلمة المرور فور الدخول الأول للنظام.
     </div>
 

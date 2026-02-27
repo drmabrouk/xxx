@@ -53,8 +53,8 @@ if (empty($members_to_print) || !$members_to_print[0]) wp_die('Member(s) not fou
                 <div class="member-name"><?php echo esc_html($member->name); ?></div>
 
                 <div class="cred-box">
-                    <div class="cred-label">اسم المستخدم (القومي):</div>
-                    <div class="cred-value"><?php echo esc_html($member->national_id); ?></div>
+                    <div class="cred-label">اسم المستخدم:</div>
+                    <div class="cred-value"><?php echo esc_html($member->username); ?></div>
                 </div>
 
                 <div class="cred-box" style="margin-bottom: 0;">

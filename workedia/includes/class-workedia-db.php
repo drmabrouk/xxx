@@ -3,29 +3,11 @@
 class Workedia_DB {
 
     public static function get_staff($args = array()) {
-        $user = wp_get_current_user();
-        $is_full_admin = current_user_can('manage_options');
-        $my_gov = get_user_meta($user->ID, 'workedia_governorate', true);
-
         $default_args = array(
             'role__in' => array('administrator', 'subscriber'),
             'number' => 20,
             'offset' => 0
         );
-
-        // If not full admin, restrict to subscribers in their governorate
-        if (!$is_full_admin) {
-            $default_args['role'] = 'subscriber';
-            if ($my_gov) {
-                $default_args['meta_query'] = array(
-                    array(
-                        'key' => 'workedia_governorate',
-                        'value' => $my_gov,
-                        'compare' => '='
-                    )
-                );
-            }
-        }
 
         $args = wp_parse_args($args, $default_args);
         return get_users($args);
@@ -43,24 +25,13 @@ class Workedia_DB {
         // Ensure we don't have negative limits unless specifically -1
         if ($limit < -1) $limit = 20;
 
-        // Role-based filtering (Governorate)
-        $user = wp_get_current_user();
-        $is_officer = in_array('administrator', (array)$user->roles);
-        if ($is_officer && !current_user_can('manage_options') && !current_user_can('manage_options')) {
-            $gov = get_user_meta($user->ID, 'workedia_governorate', true);
-            if ($gov) {
-                $query .= " AND governorate = %s";
-                $params[] = $gov;
-            }
-        }
-
         if (isset($args['membership_status']) && !empty($args['membership_status'])) {
             $query .= " AND membership_status = %s";
             $params[] = $args['membership_status'];
         }
 
         if (isset($args['search']) && !empty($args['search'])) {
-            $query .= " AND (name LIKE %s OR national_id LIKE %s OR membership_number LIKE %s)";
+            $query .= " AND (name LIKE %s OR username LIKE %s OR membership_number LIKE %s)";
             $params[] = '%' . $wpdb->esc_like($args['search']) . '%';
             $params[] = '%' . $wpdb->esc_like($args['search']) . '%';
             $params[] = '%' . $wpdb->esc_like($args['search']) . '%';
@@ -85,9 +56,9 @@ class Workedia_DB {
         return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_members WHERE id = %d", $id));
     }
 
-    public static function get_member_by_national_id($national_id) {
+    public static function get_member_by_member_username($username) {
         global $wpdb;
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_members WHERE national_id = %s", $national_id));
+        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_members WHERE username = %s", $username));
     }
 
     public static function get_member_by_membership_number($membership_number) {
@@ -106,15 +77,15 @@ class Workedia_DB {
         global $wpdb;
         $table_name = $wpdb->prefix . 'workedia_members';
 
-        $national_id = sanitize_text_field($data['national_id'] ?? '');
-        if (!preg_match('/^[0-9]{14}$/', $national_id)) {
-            return new WP_Error('invalid_national_id', 'الرقم القومي يجب أن يتكون من 14 رقم بالضبط وبدون حروف.');
+        $username = sanitize_text_field($data['username'] ?? '');
+        if (empty($username)) {
+            return new WP_Error('invalid_username', 'اسم المستخدم مطلوب.');
         }
 
-        // Check if national_id already exists
-        $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE national_id = %s", $national_id));
+        // Check if username already exists
+        $exists = $wpdb->get_var($wpdb->prepare("SELECT id FROM $table_name WHERE username = %s", $username));
         if ($exists) {
-            return new WP_Error('duplicate_national_id', 'الرقم القومي مسجل مسبقاً.');
+            return new WP_Error('duplicate_username', 'اسم المستخدم مسجل مسبقاً.');
         }
 
         $name = sanitize_text_field($data['name'] ?? '');
@@ -133,8 +104,8 @@ class Workedia_DB {
         }
 
         $wp_user_id = wp_insert_user(array(
-            'user_login' => $national_id,
-            'user_email' => $email ?: $national_id . '@irseg.org',
+            'user_login' => $username,
+            'user_email' => $email ?: $username . '@irseg.org',
             'display_name' => $name,
             'user_pass' => $temp_pass,
             'role' => 'subscriber'
@@ -143,26 +114,21 @@ class Workedia_DB {
         if (!is_wp_error($wp_user_id)) {
             $wp_user_id = $wp_user_id;
             update_user_meta($wp_user_id, 'workedia_temp_pass', $temp_pass);
-            if (!empty($data['governorate'])) {
-                update_user_meta($wp_user_id, 'workedia_governorate', sanitize_text_field($data['governorate']));
-            }
         } else {
             return $wp_user_id; // Return WP_Error
         }
 
         $insert_data = array(
-            'national_id' => $national_id,
+            'username' => $username,
             'name' => $name,
             'gender' => sanitize_text_field($data['gender'] ?? 'male'),
             'residence_street' => sanitize_textarea_field($data['residence_street'] ?? ''),
             'residence_city' => sanitize_text_field($data['residence_city'] ?? ''),
-            'residence_governorate' => sanitize_text_field($data['residence_governorate'] ?? ''),
-            'governorate' => sanitize_text_field($data['governorate'] ?? ''),
             'membership_number' => sanitize_text_field($data['membership_number'] ?? ''),
             'membership_start_date' => sanitize_text_field($data['membership_start_date'] ?? null),
             'membership_expiration_date' => sanitize_text_field($data['membership_expiration_date'] ?? null),
             'membership_status' => sanitize_text_field($data['membership_status'] ?? ''),
-            'email' => $email ?: $national_id . '@irseg.org',
+            'email' => $email ?: $username . '@irseg.org',
             'phone' => sanitize_text_field($data['phone'] ?? ''),
             'alt_phone' => sanitize_text_field($data['alt_phone'] ?? ''),
             'notes' => sanitize_textarea_field($data['notes'] ?? ''),
@@ -175,7 +141,7 @@ class Workedia_DB {
         $id = $wpdb->insert_id;
 
         if ($id) {
-            Workedia_Logger::log('إضافة عضو جديد', "تمت إضافة العضو: $name بنجاح (الرقم القومي: $national_id)");
+            Workedia_Logger::log('إضافة عضو جديد', "تمت إضافة العضو: $name بنجاح (اسم المستخدم: $username)");
         }
 
         return $id;
@@ -187,11 +153,10 @@ class Workedia_DB {
 
         $update_data = array();
         $fields = [
-            'national_id', 'name', 'gender',
-            'residence_street', 'residence_city', 'residence_governorate',
-            'governorate', 'membership_number', 'membership_start_date',
-            'membership_expiration_date', 'membership_status',
-            'email', 'phone', 'alt_phone', 'notes'
+            'username', 'name', 'gender',
+            'residence_street', 'residence_city', 'membership_number',
+            'membership_start_date', 'membership_expiration_date',
+            'membership_status', 'email', 'phone', 'alt_phone', 'notes'
         ];
 
         foreach ($fields as $f) {
@@ -221,9 +186,6 @@ class Workedia_DB {
             if (count($user_data) > 1) {
                 wp_update_user($user_data);
             }
-            if (isset($data['governorate'])) {
-                update_user_meta($member->wp_user_id, 'workedia_governorate', sanitize_text_field($data['governorate']));
-            }
         }
 
         return $res;
@@ -251,11 +213,11 @@ class Workedia_DB {
         return $wpdb->delete($wpdb->prefix . 'workedia_members', array('id' => $id));
     }
 
-    public static function member_exists($national_id) {
+    public static function member_exists($username) {
         global $wpdb;
         return $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$wpdb->prefix}workedia_members WHERE national_id = %s",
-            $national_id
+            "SELECT id FROM {$wpdb->prefix}workedia_members WHERE username = %s",
+            $username
         ));
     }
 
@@ -265,7 +227,7 @@ class Workedia_DB {
         return ($max ? intval($max) : 0) + 1;
     }
 
-    public static function send_message($sender_id, $receiver_id, $message, $member_id = null, $file_url = null, $governorate = null) {
+    public static function send_message($sender_id, $receiver_id, $message, $member_id = null, $file_url = null) {
         global $wpdb;
         return $wpdb->insert($wpdb->prefix . 'workedia_messages', array(
             'sender_id' => $sender_id,
@@ -273,7 +235,6 @@ class Workedia_DB {
             'member_id' => $member_id,
             'message' => $message,
             'file_url' => $file_url,
-            'governorate' => $governorate,
             'created_at' => current_time('mysql')
         ));
     }
@@ -288,62 +249,6 @@ class Workedia_DB {
              ORDER BY m.created_at ASC",
             $member_id
         ));
-    }
-
-    public static function get_governorate_officials($governorate) {
-        return get_users(array(
-            'role__in' => array('administrator'),
-            'meta_query' => array(
-                array(
-                    'key' => 'workedia_governorate',
-                    'value' => $governorate,
-                    'compare' => '='
-                )
-            )
-        ));
-    }
-
-    public static function get_governorate_conversations($governorate = null) {
-        global $wpdb;
-        $table = $wpdb->prefix . 'workedia_messages';
-
-        $where = "1=1";
-        $params = [];
-        if (!empty($governorate)) {
-            $where = "governorate = %s";
-            $params[] = $governorate;
-        }
-
-        $query = "SELECT member_id, MAX(created_at) as last_activity
-                  FROM $table
-                  WHERE $where
-                  GROUP BY member_id
-                  ORDER BY last_activity DESC";
-
-        if (!empty($params)) {
-            $results = $wpdb->get_results($wpdb->prepare($query, $params));
-        } else {
-            $results = $wpdb->get_results($query);
-        }
-
-        $conversations = [];
-        foreach ($results as $row) {
-            $member = self::get_member_by_id($row->member_id);
-            if (!$member) continue;
-
-            $last_msg = $wpdb->get_row($wpdb->prepare(
-                "SELECT * FROM {$wpdb->prefix}workedia_messages
-                 WHERE member_id = %d
-                 ORDER BY created_at DESC LIMIT 1",
-                $row->member_id
-            ));
-
-            $conversations[] = [
-                'member' => $member,
-                'last_message' => $last_msg
-            ];
-        }
-        return $conversations;
     }
 
     public static function get_conversation_messages($user1, $user2) {
@@ -401,21 +306,39 @@ class Workedia_DB {
         return $conversations;
     }
 
+    public static function get_officials() {
+        return get_users(array('role__in' => array('administrator')));
+    }
+
+    public static function get_all_conversations() {
+        global $wpdb;
+        $ticket_members = $wpdb->get_col("SELECT DISTINCT member_id FROM {$wpdb->prefix}workedia_messages WHERE member_id IS NOT NULL");
+        $results = [];
+        foreach ($ticket_members as $mid) {
+            $member = self::get_member_by_id($mid);
+            if (!$member) continue;
+            $last_msg = $wpdb->get_row($wpdb->prepare(
+                "SELECT * FROM {$wpdb->prefix}workedia_messages WHERE member_id = %d ORDER BY created_at DESC LIMIT 1",
+                $mid
+            ));
+            $unread = $wpdb->get_var($wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}workedia_messages WHERE member_id = %d AND is_read = 0",
+                $mid
+            ));
+            $results[] = [
+                'member' => $member,
+                'last_message' => $last_msg,
+                'unread_count' => $unread
+            ];
+        }
+        return $results;
+    }
+
     public static function get_statistics($filters = array()) {
         global $wpdb;
         $stats = array();
 
-        $user = wp_get_current_user();
-        $is_officer = in_array('administrator', (array)$user->roles);
-        $has_full_access = current_user_can('manage_options');
-        $my_gov = get_user_meta($user->ID, 'workedia_governorate', true);
-
-        $where_member = "1=1";
-        if ($is_officer && !$has_full_access && $my_gov) {
-            $where_member = $wpdb->prepare("governorate = %s", $my_gov);
-        }
-
-        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}workedia_members WHERE $where_member");
+        $stats['total_members'] = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}workedia_members");
         $stats['total_officers'] = count(self::get_staff(['number' => -1]));
 
         return $stats;
@@ -502,18 +425,7 @@ class Workedia_DB {
         $survey = self::get_survey($survey_id);
         if (!$survey) return array();
 
-        $user = wp_get_current_user();
-        $is_officer = in_array('administrator', (array)$user->roles);
-        $has_full_access = current_user_can('manage_options');
-        $my_gov = get_user_meta($user->ID, 'workedia_governorate', true);
-
         $where = $wpdb->prepare("survey_id = %d", $survey_id);
-        if ($is_officer && !$has_full_access && $my_gov) {
-            $where .= $wpdb->prepare(" AND (
-                EXISTS (SELECT 1 FROM {$wpdb->prefix}usermeta um WHERE um.user_id = user_id AND um.meta_key = 'workedia_governorate' AND um.meta_value = %s)
-                OR EXISTS (SELECT 1 FROM {$wpdb->prefix}workedia_members m WHERE m.wp_user_id = user_id AND m.governorate = %s)
-            )", $my_gov, $my_gov);
-        }
 
         $questions = json_decode($survey->questions, true);
         $responses = $wpdb->get_results("SELECT responses FROM {$wpdb->prefix}workedia_survey_responses WHERE $where");
@@ -533,59 +445,6 @@ class Workedia_DB {
     public static function get_survey_responses($survey_id) {
         global $wpdb;
         return $wpdb->get_results($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_survey_responses WHERE survey_id = %d", $survey_id));
-    }
-
-    public static function add_update_request($member_id, $data) {
-        global $wpdb;
-        return $wpdb->insert("{$wpdb->prefix}workedia_update_requests", array(
-            'member_id' => $member_id,
-            'requested_data' => json_encode($data),
-            'status' => 'pending',
-            'created_at' => current_time('mysql')
-        ));
-    }
-
-    public static function get_update_requests($status = 'pending') {
-        global $wpdb;
-        $user = wp_get_current_user();
-        $is_officer = in_array('administrator', (array)$user->roles);
-        $has_full_access = current_user_can('manage_options');
-        $my_gov = get_user_meta($user->ID, 'workedia_governorate', true);
-
-        $where = $wpdb->prepare("r.status = %s", $status);
-        if ($is_officer && !$has_full_access && $my_gov) {
-            $where .= $wpdb->prepare(" AND m.governorate = %s", $my_gov);
-        }
-
-        return $wpdb->get_results("
-            SELECT r.*, m.name as member_name, m.national_id
-            FROM {$wpdb->prefix}workedia_update_requests r
-            JOIN {$wpdb->prefix}workedia_members m ON r.member_id = m.id
-            WHERE $where
-            ORDER BY r.created_at DESC
-        ");
-    }
-
-    public static function process_update_request($request_id, $status) {
-        global $wpdb;
-        $request = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_update_requests WHERE id = %d", $request_id));
-        if (!$request) return false;
-
-        if ($status === 'approved') {
-            $data = json_decode($request->requested_data, true);
-            self::update_member($request->member_id, $data);
-            Workedia_Logger::log('اعتماد طلب تحديث بيانات', "تم تحديث بيانات العضو ID: {$request->member_id}");
-        }
-
-        return $wpdb->update(
-            "{$wpdb->prefix}workedia_update_requests",
-            array(
-                'status' => $status,
-                'processed_at' => current_time('mysql'),
-                'processed_by' => get_current_user_id()
-            ),
-            array('id' => $request_id)
-        );
     }
 
     public static function get_services($args = array()) {
@@ -657,7 +516,7 @@ class Workedia_DB {
             $params[] = intval($args['member_id']);
         }
 
-        $query = "SELECT r.*, s.name as service_name, m.name as member_name, m.governorate
+        $query = "SELECT r.*, s.name as service_name, m.name as member_name
                   FROM {$wpdb->prefix}workedia_service_requests r
                   JOIN {$wpdb->prefix}workedia_services s ON r.service_id = s.id
                   JOIN {$wpdb->prefix}workedia_members m ON r.member_id = m.id
@@ -690,7 +549,6 @@ class Workedia_DB {
             'category' => sanitize_text_field($data['category']),
             'priority' => sanitize_text_field($data['priority'] ?? 'medium'),
             'status' => 'open',
-            'province' => sanitize_text_field($data['province']),
             'created_at' => current_time('mysql'),
             'updated_at' => current_time('mysql')
         ));
@@ -727,20 +585,12 @@ class Workedia_DB {
     public static function get_tickets($args = array()) {
         global $wpdb;
         $user = wp_get_current_user();
-        $is_sys_admin = in_array('administrator', $user->roles);
-        $is_officer = in_array('administrator', $user->roles);
         $is_member = in_array('subscriber', $user->roles);
 
         $where = "1=1";
         $params = array();
 
-        if ($is_officer && !$is_sys_admin) {
-            $gov = get_user_meta($user->ID, 'workedia_governorate', true);
-            if ($gov) {
-                $where .= " AND t.province = %s";
-                $params[] = $gov;
-            }
-        } elseif ($is_member) {
+        if ($is_member) {
             // Find member_id from wp_user_id
             $member_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}workedia_members WHERE wp_user_id = %d", $user->ID));
             $where .= " AND t.member_id = %d";
@@ -760,11 +610,6 @@ class Workedia_DB {
         if (!empty($args['priority'])) {
             $where .= " AND t.priority = %s";
             $params[] = sanitize_text_field($args['priority']);
-        }
-
-        if (!empty($args['province'])) {
-            $where .= " AND t.province = %s";
-            $params[] = sanitize_text_field($args['province']);
         }
 
         if (!empty($args['search'])) {
@@ -789,7 +634,7 @@ class Workedia_DB {
     public static function get_ticket($id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT t.*, m.name as member_name, m.governorate as member_province, m.phone as member_phone
+            "SELECT t.*, m.name as member_name, m.phone as member_phone
              FROM {$wpdb->prefix}workedia_tickets t
              JOIN {$wpdb->prefix}workedia_members m ON t.member_id = m.id
              WHERE t.id = %d",

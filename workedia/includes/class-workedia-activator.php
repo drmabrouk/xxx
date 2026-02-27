@@ -19,14 +19,12 @@ class Workedia_Activator {
         $table_name = $wpdb->prefix . 'workedia_members';
         $sql .= "CREATE TABLE $table_name (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
-            national_id varchar(14) NOT NULL,
+            username varchar(100) NOT NULL,
             member_code tinytext,
             name tinytext NOT NULL,
             gender enum('male', 'female') DEFAULT 'male',
             residence_street text,
             residence_city tinytext,
-            residence_governorate tinytext,
-            governorate tinytext,
             membership_number tinytext,
             membership_start_date date,
             membership_expiration_date date,
@@ -41,7 +39,7 @@ class Workedia_Activator {
             registration_date date,
             sort_order int DEFAULT 0,
             PRIMARY KEY  (id),
-            UNIQUE KEY national_id (national_id),
+            UNIQUE KEY username (username),
             KEY wp_user_id (wp_user_id),
             KEY officer_id (officer_id)
         ) $charset_collate;\n";
@@ -56,14 +54,12 @@ class Workedia_Activator {
             member_id mediumint(9),
             message text NOT NULL,
             file_url text,
-            governorate varchar(50),
             is_read tinyint(1) DEFAULT 0,
             created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
             PRIMARY KEY  (id),
             KEY sender_id (sender_id),
             KEY receiver_id (receiver_id),
-            KEY member_id (member_id),
-            KEY governorate (governorate)
+            KEY member_id (member_id)
         ) $charset_collate;\n";
 
         // Logs Table
@@ -103,21 +99,6 @@ class Workedia_Activator {
             PRIMARY KEY  (id),
             KEY survey_id (survey_id),
             KEY user_id (user_id)
-        ) $charset_collate;\n";
-
-        // Update Requests Table
-        $table_name = $wpdb->prefix . 'workedia_update_requests';
-        $sql .= "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            member_id mediumint(9) NOT NULL,
-            requested_data text NOT NULL,
-            status enum('pending', 'approved', 'rejected') DEFAULT 'pending',
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            processed_at datetime,
-            processed_by bigint(20),
-            PRIMARY KEY  (id),
-            KEY member_id (member_id),
-            KEY status (status)
         ) $charset_collate;\n";
 
         // Digital Services Table
@@ -188,13 +169,11 @@ class Workedia_Activator {
             category varchar(50),
             priority enum('low', 'medium', 'high') DEFAULT 'medium',
             status enum('open', 'in-progress', 'closed') DEFAULT 'open',
-            province varchar(50),
             created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
             updated_at datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY member_id (member_id),
-            KEY status (status),
-            KEY province (province)
+            KEY status (status)
         ) $charset_collate;\n";
 
         // Ticket Thread Table
@@ -356,7 +335,6 @@ class Workedia_Activator {
             'sm_surveys'                => 'workedia_surveys',
             'sm_survey_responses'       => 'workedia_survey_responses',
             'sm_payments'               => 'workedia_payments',
-            'sm_update_requests'        => 'workedia_update_requests',
             'sm_services'               => 'workedia_services',
             'sm_service_requests'       => 'workedia_service_requests',
             'sm_notification_templates' => 'workedia_notification_templates',
@@ -434,7 +412,6 @@ class Workedia_Activator {
     private static function migrate_user_meta() {
         global $wpdb;
         $meta_mappings = [
-            'sm_governorate' => 'workedia_governorate',
             'sm_phone' => 'workedia_phone',
             'sm_account_status' => 'workedia_account_status',
             'sm_temp_pass' => 'workedia_temp_pass',
@@ -528,17 +505,14 @@ class Workedia_Activator {
             }
             $temp_pass = 'IRS' . $digits;
             $user_id = wp_insert_user([
-                'user_login' => $m->national_id,
-                'user_email' => $m->email ?: $m->national_id . '@irseg.org',
+                'user_login' => $m->username,
+                'user_email' => $m->email ?: $m->username . '@irseg.org',
                 'display_name' => $m->name,
                 'user_pass' => $temp_pass,
                 'role' => 'subscriber'
             ]);
             if (!is_wp_error($user_id)) {
                 update_user_meta($user_id, 'workedia_temp_pass', $temp_pass);
-                if (!empty($m->governorate)) {
-                    update_user_meta($user_id, 'workedia_governorate', $m->governorate);
-                }
                 $wpdb->update("{$wpdb->prefix}workedia_members", ['wp_user_id' => $user_id], ['id' => $m->id]);
             }
         }

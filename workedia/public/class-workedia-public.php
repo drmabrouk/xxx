@@ -131,9 +131,9 @@ class Workedia_Public {
             if (wp_check_password($password, $u->user_pass, $u->ID)) return $u;
         }
 
-        // 2. Check for National ID in workedia_members table (if user_login is different)
+        // 2. Check for Username in workedia_members table (if user_login is different)
         global $wpdb;
-        $member_wp_id = $wpdb->get_var($wpdb->prepare("SELECT wp_user_id FROM {$wpdb->prefix}workedia_members WHERE national_id = %s", $username));
+        $member_wp_id = $wpdb->get_var($wpdb->prepare("SELECT wp_user_id FROM {$wpdb->prefix}workedia_members WHERE username = %s", $username));
         if ($member_wp_id) {
             $u = get_userdata($member_wp_id);
             if ($u && wp_check_password($password, $u->user_pass, $u->ID)) return $u;
@@ -363,7 +363,7 @@ class Workedia_Public {
         $form = wp_login_form($args);
 
         // Inject placeholders
-        $form = str_replace('name="log"', 'name="log" placeholder="الرقم القومي أو اسم المستخدم"', $form);
+        $form = str_replace('name="log"', 'name="log" placeholder="اسم المستخدم"', $form);
         $form = str_replace('name="pwd"', 'name="pwd" placeholder="كلمة المرور"', $form);
 
         $output .= $form;
@@ -379,8 +379,8 @@ class Workedia_Public {
         $output .= '<button onclick="workediaToggleRecovery()" style="position:absolute; top:20px; left:20px; border:none; background:none; font-size:24px; cursor:pointer; color:#94a3b8;">&times;</button>';
         $output .= '<h3 style="margin-top:0; margin-bottom:25px; text-align:center; font-weight:800;">استعادة كلمة المرور</h3>';
         $output .= '<div id="recovery-step-1">';
-        $output .= '<p style="font-size:14px; color:#64748b; margin-bottom:20px; line-height:1.6;">أدخل الرقم القومي الخاص بك للتحقق وإرسال رمز الاستعادة.</p>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:20px;"><label class="workedia-label">الرقم القومي:</label><input type="text" id="rec_national_id" class="workedia-input" placeholder="14 رقم" maxlength="14" style="width:100%;"></div>';
+        $output .= '<p style="font-size:14px; color:#64748b; margin-bottom:20px; line-height:1.6;">أدخل اسم المستخدم الخاص بك للتحقق وإرسال رمز الاستعادة.</p>';
+        $output .= '<div class="workedia-form-group" style="margin-bottom:20px;"><label class="workedia-label">اسم المستخدم:</label><input type="text" id="rec_username" class="workedia-input" style="width:100%;"></div>';
         $output .= '<button onclick="workediaRequestOTP()" class="workedia-btn" style="width:100%;">إرسال رمز التحقق</button>';
         $output .= '</div>';
         $output .= '<div id="recovery-step-2" style="display:none;">';
@@ -401,7 +401,7 @@ class Workedia_Public {
         $output .= '<div id="activation-step-1">';
         $output .= '<div style="display:flex; justify-content:center; gap:10px; margin-bottom:20px;"><span style="width:30px; height:30px; background:var(--workedia-primary-color); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">1</span><span style="width:30px; height:30px; background:#edf2f7; color:#718096; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">2</span><span style="width:30px; height:30px; background:#edf2f7; color:#718096; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">3</span></div>';
         $output .= '<p style="font-size:14px; color:#4a5568; margin-bottom:20px; text-align:center;">المرحلة الأولى: التحقق من الهوية بالسجلات</p>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:15px;"><input type="text" id="act_national_id" class="workedia-input" placeholder="الرقم القومي (14 رقم)" style="width:100%;"></div>';
+        $output .= '<div class="workedia-form-group" style="margin-bottom:15px;"><input type="text" id="act_username" class="workedia-input" placeholder="اسم المستخدم" style="width:100%;"></div>';
         $output .= '<div class="workedia-form-group" style="margin-bottom:15px;"><input type="text" id="act_mem_no" class="workedia-input" placeholder="رقم القيد النقابي" style="width:100%;"></div>';
         $output .= '<button onclick="workediaActivateStep1()" class="workedia-btn" style="width:100%;">تحقق وانتقل للخطوة التالية</button>';
         $output .= '</div>';
@@ -436,8 +436,8 @@ class Workedia_Public {
             document.getElementById("activation-step-2").style.display = "none";
         }
         function workediaRequestOTP() {
-            const nid = document.getElementById("rec_national_id").value;
-            const fd = new FormData(); fd.append("action", "workedia_forgot_password_otp"); fd.append("national_id", nid);
+            const username = document.getElementById("rec_username").value;
+            const fd = new FormData(); fd.append("action", "workedia_forgot_password_otp"); fd.append("username", username);
             fetch("'.admin_url('admin-ajax.php').'", {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
                 if(res.success) {
                     document.getElementById("recovery-step-1").style.display="none";
@@ -454,21 +454,20 @@ class Workedia_Public {
             document.getElementById("activation-step-3").style.display="block";
         }
         function workediaResetPassword() {
-            const nid = document.getElementById("rec_national_id").value;
+            const username = document.getElementById("rec_username").value;
             const otp = document.getElementById("rec_otp").value;
             const pass = document.getElementById("rec_new_pass").value;
             const fd = new FormData(); fd.append("action", "workedia_reset_password_otp");
-            fd.append("national_id", nid); fd.append("otp", otp); fd.append("new_password", pass);
+            fd.append("username", username); fd.append("otp", otp); fd.append("new_password", pass);
             fetch("'.admin_url('admin-ajax.php').'", {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
                 if(res.success) { alert(res.data); location.reload(); } else alert(res.data);
             });
         }
         function workediaActivateStep1() {
-            const nid = document.getElementById("act_national_id").value;
+            const username = document.getElementById("act_username").value;
             const mem = document.getElementById("act_mem_no").value;
-            if(!/^[0-9]{14}$/.test(nid)) return alert("يرجى إدخال رقم قومي صحيح (14 رقم)");
             const fd = new FormData(); fd.append("action", "workedia_activate_account_step1");
-            fd.append("national_id", nid); fd.append("membership_number", mem);
+            fd.append("username", username); fd.append("membership_number", mem);
             fetch("'.admin_url('admin-ajax.php').'", {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
                 if(res.success) {
                     document.getElementById("activation-step-1").style.display="none";
@@ -477,7 +476,7 @@ class Workedia_Public {
             });
         }
         function workediaActivateFinal() {
-            const nid = document.getElementById("act_national_id").value;
+            const username = document.getElementById("act_username").value;
             const mem = document.getElementById("act_mem_no").value;
             const email = document.getElementById("act_email").value;
             const phone = document.getElementById("act_phone").value;
@@ -485,7 +484,7 @@ class Workedia_Public {
             if(!/^\S+@\S+\.\S+$/.test(email)) return alert("يرجى إدخال بريد إلكتروني صحيح");
             if(pass.length < 10) return alert("كلمة المرور يجب أن تكون 10 أحرف على الأقل");
             const fd = new FormData(); fd.append("action", "workedia_activate_account_final");
-            fd.append("national_id", nid); fd.append("membership_number", mem);
+            fd.append("username", username); fd.append("membership_number", mem);
             fd.append("email", email); fd.append("phone", phone); fd.append("password", pass);
             fetch("'.admin_url('admin-ajax.php').'", {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
                 if(res.success) { alert(res.data); location.reload(); } else alert(res.data);
@@ -536,8 +535,8 @@ class Workedia_Public {
 
     public function ajax_get_member() {
         if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        $national_id = sanitize_text_field($_POST['national_id'] ?? '');
-        $member = Workedia_DB::get_member_by_national_id($national_id);
+        $username = sanitize_text_field($_POST['username'] ?? '');
+        $member = Workedia_DB::get_member_by_member_username($username);
         if ($member) {
             if (!$this->can_access_member($member->id)) wp_send_json_error('Access denied');
             wp_send_json_success($member);
@@ -606,11 +605,10 @@ class Workedia_Public {
         if ($role === 'subscriber') {
             // Unified Add for Member
             $member_data = [
-                'national_id' => sanitize_text_field($_POST['officer_id'] ?: $username),
+                'username' => sanitize_text_field($_POST['officer_id'] ?: $username),
                 'name' => $display_name,
                 'email' => $email,
                 'phone' => sanitize_text_field($_POST['phone']),
-                'governorate' => sanitize_text_field($_POST['governorate']),
                 'membership_number' => sanitize_text_field($_POST['membership_number'] ?? ''),
                 'membership_status' => sanitize_text_field($_POST['membership_status'] ?? 'active')
             ];
@@ -634,7 +632,6 @@ class Workedia_Public {
             update_user_meta($user_id, 'workediaMemberIdAttr', sanitize_text_field($_POST['officer_id']));
             update_user_meta($user_id, 'workedia_phone', sanitize_text_field($_POST['phone']));
             update_user_meta($user_id, 'workedia_account_status', 'active');
-            update_user_meta($user_id, 'workedia_governorate', sanitize_text_field($_POST['governorate']));
         }
 
         Workedia_Logger::log('إضافة مستخدم (موحد)', "الاسم: $display_name الدور: $role");
@@ -688,15 +685,6 @@ class Workedia_Public {
         update_user_meta($user_id, 'workediaMemberIdAttr', sanitize_text_field($_POST['officer_id']));
         update_user_meta($user_id, 'workedia_phone', sanitize_text_field($_POST['phone']));
 
-        $gov = sanitize_text_field($_POST['governorate'] ?? '');
-        if (current_user_can('manage_options')) {
-            // Full admins can update governorate
-            update_user_meta($user_id, 'workedia_governorate', $gov);
-        } else {
-            // Local admins can't change governorate (keep current)
-            $gov = get_user_meta($user_id, 'workedia_governorate', true);
-        }
-
         update_user_meta($user_id, 'workedia_account_status', sanitize_text_field($_POST['account_status']));
 
         // Sync to workedia_members if it's a member
@@ -705,8 +693,7 @@ class Workedia_Public {
             $wpdb->update("{$wpdb->prefix}workedia_members", [
                 'name' => sanitize_text_field($_POST['display_name']),
                 'email' => sanitize_email($_POST['user_email']),
-                'phone' => sanitize_text_field($_POST['phone']),
-                'governorate' => $gov
+                'phone' => sanitize_text_field($_POST['phone'])
             ], ['wp_user_id' => $user_id]);
         }
 
@@ -744,87 +731,6 @@ class Workedia_Public {
         wp_send_json_success('Deleted');
     }
 
-    public function ajax_delete_gov_data() {
-        if (!current_user_can('manage_options') && !current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_admin_action', 'nonce');
-
-        global $wpdb;
-        $gov = sanitize_text_field($_POST['governorate']);
-        if (!$gov) wp_send_json_error('محافظة غير محددة');
-
-        // 1. Get member IDs for this gov
-        $member_ids = $wpdb->get_col($wpdb->prepare("SELECT id FROM {$wpdb->prefix}workedia_members WHERE governorate = %s", $gov));
-        if (empty($member_ids)) wp_send_json_success('لا توجد بيانات لهذه المحافظة');
-
-        // 2. Delete WP Users
-        $wp_user_ids = $wpdb->get_col($wpdb->prepare("SELECT wp_user_id FROM {$wpdb->prefix}workedia_members WHERE governorate = %s AND wp_user_id IS NOT NULL", $gov));
-        if (!empty($wp_user_ids)) {
-            require_once(ABSPATH . 'wp-admin/includes/user.php');
-            foreach ($wp_user_ids as $uid) wp_delete_user($uid);
-        }
-
-        // 4. Delete members
-        $wpdb->query($wpdb->prepare("DELETE FROM {$wpdb->prefix}workedia_members WHERE governorate = %s", $gov));
-
-        Workedia_Logger::log('حذف بيانات محافظة', "تم مسح كافة بيانات محافظة: $gov");
-        wp_send_json_success();
-    }
-
-    public function ajax_merge_gov_data() {
-        if (!current_user_can('manage_options') && !current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_admin_action', 'nonce');
-
-        $gov = sanitize_text_field($_POST['governorate']);
-        if (empty($_FILES['backup_file']['tmp_name'])) wp_send_json_error('الملف غير موجود');
-
-        $json = file_get_contents($_FILES['backup_file']['tmp_name']);
-        $data = json_decode($json, true);
-        if (!$data || !isset($data['members'])) wp_send_json_error('تنسيق الملف غير صحيح');
-
-        $success = 0; $skipped = 0;
-        foreach ($data['members'] as $row) {
-            // Only merge members belonging to the TARGET governorate if specified in the row,
-            // OR force them to the target governorate.
-            // Requirement says "data for a single governorate only"
-            if ($row['governorate'] !== $gov) {
-                $skipped++;
-                continue;
-            }
-
-            if (Workedia_DB::member_exists($row['national_id'])) {
-                $skipped++;
-                continue;
-            }
-
-            // Clean data for insertion
-            unset($row['id']);
-
-            // Re-create WP User if needed
-            $digits = ''; for ($i = 0; $i < 10; $i++) $digits .= mt_rand(0, 9);
-            $temp_pass = 'IRS' . $digits;
-            $wp_user_id = wp_insert_user([
-                'user_login' => $row['national_id'],
-                'user_email' => $row['email'] ?: $row['national_id'] . '@irseg.org',
-                'display_name' => $row['name'],
-                'user_pass' => $temp_pass,
-                'role' => 'subscriber'
-            ]);
-
-            if (!is_wp_error($wp_user_id)) {
-                $row['wp_user_id'] = $wp_user_id;
-                update_user_meta($wp_user_id, 'workedia_temp_pass', $temp_pass);
-                update_user_meta($wp_user_id, 'workedia_governorate', $gov);
-            }
-
-            global $wpdb;
-            if ($wpdb->insert("{$wpdb->prefix}workedia_members", $row)) $success++;
-            else $skipped++;
-        }
-
-        Workedia_Logger::log('دمج بيانات محافظة', "تم دمج $success عضواً لمحافظة $gov (تخطى $skipped)");
-        wp_send_json_success("تم بنجاح دمج $success عضواً وتجاهل $skipped عضواً مسجلين مسبقاً.");
-    }
-
     public function ajax_reset_system() {
         if (!current_user_can('manage_options') && !current_user_can('manage_options')) wp_send_json_error('Unauthorized');
         check_ajax_referer('workedia_admin_action', 'nonce');
@@ -838,7 +744,7 @@ class Workedia_Public {
         global $wpdb;
         $tables = [
             'workedia_members', 'workedia_logs', 'workedia_messages',
-            'workedia_surveys', 'workedia_survey_responses', 'workedia_update_requests'
+            'workedia_surveys', 'workedia_survey_responses'
         ];
 
         // 1. Delete WordPress Users associated with members
@@ -886,26 +792,23 @@ class Workedia_Public {
             $wp_user_id = $data['wp_user_id'] ?? null;
 
             // Check if user login already exists
-            if (!empty($data['national_id']) && username_exists($data['national_id'])) {
-                wp_send_json_error('لا يمكن الاستعادة: اسم المستخدم (الرقم القومي) موجود بالفعل');
+            if (!empty($data['username']) && username_exists($data['username'])) {
+                wp_send_json_error('لا يمكن الاستعادة: اسم المستخدم موجود بالفعل');
             }
 
             // Re-create WP User if it was deleted
             if ($wp_user_id && !get_userdata($wp_user_id)) {
                 $digits = ''; for ($i = 0; $i < 10; $i++) $digits .= mt_rand(0, 9);
-                $temp_pass = 'IRS' . $digits;
+                $temp_pass = 'WORK' . $digits;
                 $wp_user_id = wp_insert_user([
-                    'user_login' => $data['national_id'],
-                    'user_email' => $data['email'] ?: $data['national_id'] . '@irseg.org',
+                    'user_login' => $data['username'],
+                    'user_email' => $data['email'] ?: $data['username'] . '@irseg.org',
                     'display_name' => $data['name'],
                     'user_pass' => $temp_pass,
                     'role' => 'subscriber'
                 ]);
                 if (is_wp_error($wp_user_id)) wp_send_json_error($wp_user_id->get_error_message());
                 update_user_meta($wp_user_id, 'workedia_temp_pass', $temp_pass);
-                if (!empty($data['governorate'])) {
-                    update_user_meta($wp_user_id, 'workedia_governorate', $data['governorate']);
-                }
             }
 
             unset($data['id']);
@@ -1095,10 +998,9 @@ class Workedia_Public {
                     ];
                 }
                 break;
-            default: // 'all' - National ID or Username
-                if (preg_match('/^[0-9]{14}$/', $val)) {
-                    $member = Workedia_DB::get_member_by_national_id($val);
-                } else {
+            default: // 'all' - Username
+                $member = Workedia_DB::get_member_by_member_username($val);
+                if (!$member) {
                     $member = Workedia_DB::get_member_by_username($val);
                 }
 
@@ -1254,11 +1156,10 @@ class Workedia_Public {
             if (count($data) < 2) { $results['error']++; continue; }
 
             $member_data = [
-                'national_id' => sanitize_text_field($data[0]),
+                'username' => sanitize_text_field($data[0]),
                 'name' => sanitize_text_field($data[1]),
-                'governorate' => sanitize_text_field($data[2] ?? ''),
-                'phone' => sanitize_text_field($data[3] ?? ''),
-                'email' => sanitize_email($data[4] ?? '')
+                'phone' => sanitize_text_field($data[2] ?? ''),
+                'email' => sanitize_email($data[3] ?? '')
             ];
 
             $res = Workedia_DB::add_member($member_data);
@@ -1318,7 +1219,7 @@ class Workedia_Public {
                 // If it's a subscriber/member, ensure it's in members table too
                 if ($role === 'subscriber') {
                     Workedia_DB::add_member([
-                        'national_id' => $officer_id ?: $username,
+                        'username' => $officer_id ?: $username,
                         'name' => $name,
                         'email' => $email ?: $username . '@irseg.org',
                         'phone' => $phone,
@@ -1369,7 +1270,6 @@ class Workedia_Public {
 
         $message = sanitize_textarea_field($_POST['message'] ?? '');
         $receiver_id = intval($_POST['receiver_id'] ?? 0);
-        $governorate = $member->governorate;
 
         $file_url = null;
         if (!empty($_FILES['message_file']['name'])) {
@@ -1387,7 +1287,7 @@ class Workedia_Public {
             }
         }
 
-        Workedia_DB::send_message($sender_id, $receiver_id, $message, $member_id, $file_url, $governorate);
+        Workedia_DB::send_message($sender_id, $receiver_id, $message, $member_id, $file_url);
         wp_send_json_success();
     }
 
@@ -1413,14 +1313,10 @@ class Workedia_Public {
         check_ajax_referer('workedia_message_action', 'nonce');
 
         $user = wp_get_current_user();
-        $gov = get_user_meta($user->ID, 'workedia_governorate', true);
         $has_full_access = current_user_can('manage_options');
 
-        if (!$gov && !$has_full_access) wp_send_json_error('No governorate assigned');
-
         if (in_array('subscriber', (array)$user->roles)) {
-             // Members see officials of their governorate
-             $officials = Workedia_DB::get_governorate_officials($gov);
+             $officials = Workedia_DB::get_officials();
              $data = [];
              foreach($officials as $o) {
                  $data[] = [
@@ -1433,10 +1329,7 @@ class Workedia_Public {
              }
              wp_send_json_success(['type' => 'member_view', 'officials' => $data]);
         } else {
-             // Officials see members' tickets
-             // If System Admin/WP Admin, pass null to see all governorates
-             $target_gov = $has_full_access ? null : $gov;
-             $conversations = Workedia_DB::get_governorate_conversations($target_gov);
+             $conversations = Workedia_DB::get_all_conversations();
              foreach($conversations as &$c) {
                  $c['member']->avatar = $c['member']->photo_url ?: get_avatar_url($c['member']->wp_user_id ?: 0);
              }
@@ -1474,52 +1367,12 @@ class Workedia_Public {
         exit;
     }
 
-    public function ajax_submit_update_request_ajax() {
-        if (!is_user_logged_in()) wp_send_json_error('يجب تسجيل الدخول');
-        check_ajax_referer('workedia_update_request', 'nonce');
-
-        $member_id = intval($_POST['member_id']);
-        if (!$this->can_access_member($member_id)) wp_send_json_error('لا تملك صلاحية تعديل هذا العضو');
-
-        $data = array(
-            'name' => sanitize_text_field($_POST['name']),
-            'national_id' => sanitize_text_field($_POST['national_id']),
-            'residence_governorate' => sanitize_text_field($_POST['residence_governorate']),
-            'residence_city' => sanitize_text_field($_POST['residence_city']),
-            'residence_street' => sanitize_textarea_field($_POST['residence_street']),
-            'governorate' => sanitize_text_field($_POST['governorate']),
-            'phone' => sanitize_text_field($_POST['phone']),
-            'email' => sanitize_email($_POST['email']),
-            'notes' => sanitize_textarea_field($_POST['notes'])
-        );
-
-        $res = Workedia_DB::add_update_request($member_id, $data);
-        if ($res) {
-            wp_send_json_success();
-        } else {
-            wp_send_json_error('فشل في إرسال الطلب');
-        }
-    }
-
-    public function ajax_process_update_request_ajax() {
-        if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_update_request', 'nonce');
-
-        $request_id = intval($_POST['request_id']);
-        $status = sanitize_text_field($_POST['status']); // 'approved' or 'rejected'
-
-        if (Workedia_DB::process_update_request($request_id, $status)) {
-            wp_send_json_success();
-        } else {
-            wp_send_json_error('فشل في معالجة الطلب');
-        }
-    }
 
     public function ajax_forgot_password_otp() {
-        $national_id = sanitize_text_field($_POST['national_id'] ?? '');
-        $member = Workedia_DB::get_member_by_national_id($national_id);
+        $username = sanitize_text_field($_POST['username'] ?? '');
+        $member = Workedia_DB::get_member_by_member_username($username);
         if (!$member || !$member->wp_user_id) {
-            wp_send_json_error('الرقم القومي غير مسجل في النظام');
+            wp_send_json_error('اسم المستخدم غير مسجل في النظام');
         }
 
         $user = get_userdata($member->wp_user_id);
@@ -1542,11 +1395,11 @@ class Workedia_Public {
     }
 
     public function ajax_reset_password_otp() {
-        $national_id = sanitize_text_field($_POST['national_id'] ?? '');
+        $username = sanitize_text_field($_POST['username'] ?? '');
         $otp = sanitize_text_field($_POST['otp'] ?? '');
         $new_pass = $_POST['new_password'] ?? '';
 
-        $member = Workedia_DB::get_member_by_national_id($national_id);
+        $member = Workedia_DB::get_member_by_member_username($username);
         if (!$member || !$member->wp_user_id) wp_send_json_error('بيانات غير صحيحة');
 
         $user_id = $member->wp_user_id;
@@ -1570,11 +1423,11 @@ class Workedia_Public {
     }
 
     public function ajax_activate_account_step1() {
-        $national_id = sanitize_text_field($_POST['national_id'] ?? '');
+        $username = sanitize_text_field($_POST['username'] ?? '');
         $membership_number = sanitize_text_field($_POST['membership_number'] ?? '');
 
-        $member = Workedia_DB::get_member_by_national_id($national_id);
-        if (!$member) wp_send_json_error('الرقم القومي غير موجود في السجلات.');
+        $member = Workedia_DB::get_member_by_member_username($username);
+        if (!$member) wp_send_json_error('اسم المستخدم غير موجود في السجلات.');
 
         if ($member->membership_number !== $membership_number) {
             wp_send_json_error('بيانات التحقق غير صحيحة، يرجى مراجعة رقم العضوية.');
@@ -1592,13 +1445,13 @@ class Workedia_Public {
     }
 
     public function ajax_activate_account_final() {
-        $national_id = sanitize_text_field($_POST['national_id'] ?? '');
+        $username = sanitize_text_field($_POST['username'] ?? '');
         $membership_number = sanitize_text_field($_POST['membership_number'] ?? '');
         $new_email = sanitize_email($_POST['email'] ?? '');
         $new_phone = sanitize_text_field($_POST['phone'] ?? '');
         $new_pass = $_POST['password'] ?? '';
 
-        $member = Workedia_DB::get_member_by_national_id($national_id);
+        $member = Workedia_DB::get_member_by_member_username($username);
         if (!$member || $member->membership_number !== $membership_number) {
             wp_send_json_error('فشل التحقق من الهوية');
         }
@@ -1707,7 +1560,6 @@ class Workedia_Public {
             'status' => $_GET['status'] ?? '',
             'category' => $_GET['category'] ?? '',
             'priority' => $_GET['priority'] ?? '',
-            'province' => $_GET['province'] ?? '',
             'search' => $_GET['search'] ?? ''
         );
         $tickets = Workedia_DB::get_tickets($args);
@@ -1720,7 +1572,7 @@ class Workedia_Public {
 
         $user = wp_get_current_user();
         global $wpdb;
-        $member = $wpdb->get_row($wpdb->prepare("SELECT id, governorate FROM {$wpdb->prefix}workedia_members WHERE wp_user_id = %d", $user->ID));
+        $member = $wpdb->get_row($wpdb->prepare("SELECT id FROM {$wpdb->prefix}workedia_members WHERE wp_user_id = %d", $user->ID));
 
         if (!$member) wp_send_json_error('Member profile not found');
 
@@ -1741,7 +1593,6 @@ class Workedia_Public {
             'category' => sanitize_text_field($_POST['category']),
             'priority' => sanitize_text_field($_POST['priority'] ?? 'medium'),
             'message' => sanitize_textarea_field($_POST['message']),
-            'province' => $member->governorate,
             'file_url' => $file_url
         );
 
@@ -1761,17 +1612,11 @@ class Workedia_Public {
         // Check permission
         $user = wp_get_current_user();
         $is_sys_admin = in_array('administrator', $user->roles);
-        $is_officer = in_array('administrator', $user->roles);
 
         if (!$is_sys_admin) {
-             if ($is_officer) {
-                 $gov = get_user_meta($user->ID, 'workedia_governorate', true);
-                 if ($gov && $ticket->province !== $gov) wp_send_json_error('Access denied');
-             } else {
-                 global $wpdb;
-                 $member_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}workedia_members WHERE wp_user_id = %d", $user->ID));
-                 if ($ticket->member_id != $member_id) wp_send_json_error('Access denied');
-             }
+             global $wpdb;
+             $member_id = $wpdb->get_var($wpdb->prepare("SELECT id FROM {$wpdb->prefix}workedia_members WHERE wp_user_id = %d", $user->ID));
+             if ($ticket->member_id != $member_id) wp_send_json_error('Access denied');
         }
 
         $thread = Workedia_DB::get_ticket_thread($id);

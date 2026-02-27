@@ -36,9 +36,8 @@ class Workedia_Notifications {
 
         $placeholders = array_merge([
             '{member_name}' => $member->name,
-            '{national_id}' => $member->national_id,
+            '{username}' => $member->username,
             '{membership_number}' => $member->membership_number,
-            '{governorate}' => Workedia_Settings::get_governorates()[$member->governorate] ?? $member->governorate,
             '{year}' => date('Y'),
         ], $extra_placeholders);
 

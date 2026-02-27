@@ -10,12 +10,10 @@ $is_official = $is_admin || $is_officer;
 
 // Get member data if applicable
 $member_id = 0;
-$member_gov = '';
 global $wpdb;
-$member = $wpdb->get_row($wpdb->prepare("SELECT id, governorate FROM {$wpdb->prefix}workedia_members WHERE wp_user_id = %d", $my_id));
+$member = $wpdb->get_row($wpdb->prepare("SELECT id FROM {$wpdb->prefix}workedia_members WHERE wp_user_id = %d", $my_id));
 if ($member) {
     $member_id = $member->id;
-    $member_gov = $member->governorate;
 }
 
 $categories = array(
@@ -62,12 +60,6 @@ $priorities = array(
                     <?php foreach($priorities as $k => $v) echo "<option value='$k'>$v</option>"; ?>
                 </select>
 
-                <?php if ($is_admin): ?>
-                    <select id="filter-province" class="workedia-select" onchange="workediaLoadTickets()" style="width: 130px; height: 40px; padding: 0 10px;">
-                        <option value="">كل المحافظات</option>
-                        <?php foreach(Workedia_Settings::get_governorates() as $k => $v) echo "<option value='$k'>$v</option>"; ?>
-                    </select>
-                <?php endif; ?>
 
                 <div style="position: relative;">
                     <input type="text" id="filter-search" class="workedia-input" placeholder="بحث..." oninput="workediaLoadTickets()" style="width: 180px; height: 40px; padding-left: 30px;">
@@ -160,11 +152,10 @@ $priorities = array(
         const status = $('#filter-status').val();
         const category = $('#filter-category').val();
         const priority = $('#filter-priority').val();
-        const province = $('#filter-province').val() || '';
         const search = $('#filter-search').val();
         const nonce = '<?php echo wp_create_nonce("workedia_ticket_action"); ?>';
 
-        fetch(ajaxurl + `?action=workedia_get_tickets&status=${status}&category=${category}&priority=${priority}&province=${province}&search=${search}&nonce=${nonce}&t=${Date.now()}`)
+        fetch(ajaxurl + `?action=workedia_get_tickets&status=${status}&category=${category}&priority=${priority}&search=${search}&nonce=${nonce}&t=${Date.now()}`)
         .then(r => r.json())
         .then(res => {
             grid.css('opacity', '1').empty();
@@ -280,7 +271,6 @@ $priorities = array(
                         <h4 style="margin: 0 0 15px 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">بيانات مقدم الطلب</h4>
                         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; font-size: 13px;">
                             <div><label style="color: #94a3b8; display: block;">الاسم:</label><strong>${t.member_name}</strong></div>
-                            <div><label style="color: #94a3b8; display: block;">المحافظة:</label><strong>${t.member_province}</strong></div>
                             <div><label style="color: #94a3b8; display: block;">رقم الهاتف:</label><strong>${t.member_phone}</strong></div>
                             <div><label style="color: #94a3b8; display: block;">تاريخ الفتح:</label><strong>${t.created_at}</strong></div>
                         </div>

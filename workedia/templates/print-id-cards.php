@@ -67,10 +67,10 @@
                 </div>
                 <div class="info">
                     <p><strong>العضو:</strong> <?php echo esc_html($s->name); ?></p>
-                    <p><strong>القومي:</strong> <?php echo esc_html($s->national_id); ?></p>
+                    <p><strong>اسم المستخدم:</strong> <?php echo esc_html($s->username); ?></p>
                 </div>
                 <div class="barcode">
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=<?php echo urlencode($s->national_id); ?>" alt="QR Code">
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=<?php echo urlencode($s->username); ?>" alt="QR Code">
                 </div>
             </div>
             <div class="footer">

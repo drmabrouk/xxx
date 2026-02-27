@@ -17,7 +17,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
                 <h4 style="margin-top:0;">استيراد أعضاء (Members)</h4>
-                <p style="font-size: 12px; color: #64748b; margin-bottom: 15px;">(الرقم القومي، الاسم، المحافظة، رقم الهاتف، البريد الإلكتروني)</p>
+                <p style="font-size: 12px; color: #64748b; margin-bottom: 15px;">(اسم المستخدم، الاسم، رقم الهاتف، البريد الإلكتروني)</p>
                 <form method="post" enctype="multipart/form-data">
                     <?php wp_nonce_field('workedia_admin_action', 'workedia_admin_nonce'); ?>
                     <input type="file" name="member_csv_file" accept=".csv" required style="margin-bottom:10px; width:100%;">
@@ -49,7 +49,7 @@
             <input type="hidden" name="workedia_tab" value="users-management">
 
             <div class="workedia-form-group" style="margin-bottom:0;">
-                <label class="workedia-label">بحث عن مستخدم (اسم/بريد/كود/رقم قومي):</label>
+                <label class="workedia-label">بحث عن مستخدم (اسم/بريد/كود/اسم مستخدم):</label>
                 <input type="text" name="user_search" class="workedia-input" value="<?php echo esc_attr(isset($_GET['user_search']) ? $_GET['user_search'] : ''); ?>" placeholder="أدخل بيانات البحث...">
             </div>
 
@@ -74,10 +74,9 @@
             <thead>
                 <tr>
                     <th style="width: 40px;"><input type="checkbox" onclick="toggleAllUsers(this)"></th>
-                    <th>الرقم القومي / الكود</th>
+                    <th>اسم المستخدم / الكود</th>
                     <th>الاسم الكامل</th>
                     <th>الدور</th>
-                    <th>المحافظة</th>
                     <th>رقم التواصل</th>
                     <th>الإجراءات</th>
                 </tr>
@@ -129,7 +128,6 @@
                             </td>
                             <td style="font-weight: 800;"><?php echo esc_html($u->display_name); ?></td>
                             <td><span class="workedia-badge <?php echo $role_slug == 'administrator' ? 'workedia-badge-high' : 'workedia-badge-low'; ?>"><?php echo $role_labels[$role_slug] ?? $role_slug; ?></span></td>
-                            <td><?php echo Workedia_Settings::get_governorates()[get_user_meta($u->ID, 'workedia_governorate', true)] ?? 'غير محدد'; ?></td>
                             <td dir="ltr" style="text-align: right;"><?php echo esc_html(get_user_meta($u->ID, 'workedia_phone', true)); ?></td>
                             <td>
                                 <div style="display: flex; gap: 8px; justify-content: flex-end;">
@@ -144,7 +142,6 @@
                                         "role" => $role_slug,
                                         "member_id_attr" => get_user_meta($u->ID, "workediaMemberIdAttr", true),
                                         "phone" => get_user_meta($u->ID, "workedia_phone", true),
-                                        "governorate" => get_user_meta($u->ID, "workedia_governorate", true),
                                         "status" => get_user_meta($u->ID, "workedia_account_status", true) ?: "active"
                                     ))); ?>)' class="workedia-btn workedia-btn-outline" style="padding: 5px 12px; font-size: 12px; height: 32px;">تعديل</button>
                                     <button onclick="workediaDeleteUser(<?php echo $u->ID; ?>, '<?php echo esc_js($u->display_name); ?>')" class="workedia-btn" style="background:#e53e3e; padding: 5px 12px; font-size: 12px; height: 32px;">حذف</button>
@@ -185,7 +182,7 @@
                         <input type="text" name="display_name" class="workedia-input" required>
                     </div>
                     <div class="workedia-form-group">
-                        <label class="workedia-label">الرقم القومي / الكود:</label>
+                        <label class="workedia-label">اسم المستخدم / الكود:</label>
                         <input type="text" name="officer_id" class="workedia-input" required>
                     </div>
                     <div class="workedia-form-group">
@@ -195,13 +192,6 @@
                             <?php if ($is_sys_manager): ?>
                                 <option value="administrator">مدير نظام (Administrator)</option>
                             <?php endif; ?>
-                        </select>
-                    </div>
-                    <div class="workedia-form-group">
-                        <label class="workedia-label">المحافظة:</label>
-                        <select name="governorate" class="workedia-select">
-                            <option value="">-- اختر المحافظة --</option>
-                            <?php foreach (Workedia_Settings::get_governorates() as $k => $v) echo "<option value='$k'>$v</option>"; ?>
                         </select>
                     </div>
                     <div class="workedia-form-group">
@@ -255,7 +245,7 @@
                         <input type="text" name="display_name" id="edit_user_display_name" class="workedia-input" required>
                     </div>
                     <div class="workedia-form-group">
-                        <label class="workedia-label">الرقم القومي / الكود:</label>
+                        <label class="workedia-label">اسم المستخدم / الكود:</label>
                         <input type="text" name="officer_id" id="edit_user_code" class="workedia-input" required>
                     </div>
                     <div class="workedia-form-group">
@@ -273,13 +263,6 @@
                             <?php if ($is_sys_manager): ?>
                                 <option value="administrator">مدير النظام (Administrator)</option>
                             <?php endif; ?>
-                        </select>
-                    </div>
-                    <div class="workedia-form-group">
-                        <label class="workedia-label">المحافظة:</label>
-                        <select name="governorate" id="edit_user_gov" class="workedia-select">
-                            <option value="">-- اختر المحافظة --</option>
-                            <?php foreach (Workedia_Settings::get_governorates() as $k => $v) echo "<option value='$k'>$v</option>"; ?>
                         </select>
                     </div>
                     <div class="workedia-form-group">
@@ -361,7 +344,6 @@
         document.getElementById('edit_user_email').value = u.email;
         document.getElementById('edit_user_status').value = u.status || 'active';
         document.getElementById('edit_user_role').value = u.role;
-        document.getElementById('edit_user_gov').value = u.governorate || '';
         document.getElementById('edit-user-modal').style.display = 'flex';
     };
 

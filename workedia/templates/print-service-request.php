@@ -3,7 +3,7 @@
 $request_id = intval($_GET['id']);
 global $wpdb;
 $req = $wpdb->get_row($wpdb->prepare("
-    SELECT r.*, s.name as service_name, s.description as service_desc, s.selected_profile_fields, m.name as member_name, m.national_id, m.membership_number, m.governorate, m.phone, m.email, m.facility_name
+    SELECT r.*, s.name as service_name, s.description as service_desc, s.selected_profile_fields, m.name as member_name, m.username, m.membership_number, m.phone, m.email, m.facility_name
     FROM {$wpdb->prefix}workedia_service_requests r
     JOIN {$wpdb->prefix}workedia_services s ON r.service_id = s.id
     JOIN {$wpdb->prefix}workedia_members m ON r.member_id = m.id
@@ -42,7 +42,6 @@ $data = json_decode($req->request_data, true);
     <div class="header">
         <div class="workedia-info">
             <h2 style="margin:0;"><?php echo esc_html($workedia['workedia_name']); ?></h2>
-            <p style="margin:5px 0;"><?php echo esc_html(Workedia_Settings::get_governorates()[$req->governorate] ?? $req->governorate); ?></p>
         </div>
         <?php if (!empty($workedia['workedia_logo'])): ?>
             <img src="<?php echo esc_url($workedia['workedia_logo']); ?>" class="logo">
@@ -55,7 +54,7 @@ $data = json_decode($req->request_data, true);
     </div>
 
     <p>تشهد Workedia بأن السيد/ <strong><?php echo esc_html($req->member_name); ?></strong></p>
-    <p>المقيد بWorkedia برقم عضوية: (<?php echo esc_html($req->membership_number); ?>) وحامل الرقم القومي: (<?php echo esc_html($req->national_id); ?>)</p>
+    <p>المقيد بWorkedia برقم عضوية: (<?php echo esc_html($req->membership_number); ?>) واسم مستخدم: (<?php echo esc_html($req->username); ?>)</p>
 
     <table class="content-table">
         <tr><td>تاريخ تقديم الطلب:</td><td><?php echo date('Y-m-d', strtotime($req->created_at)); ?></td></tr>
@@ -63,11 +62,10 @@ $data = json_decode($req->request_data, true);
         $pFields = json_decode($req->selected_profile_fields, true) ?: [];
         $profile_map = [
             'name' => ['label' => 'الاسم الكامل', 'value' => $req->member_name],
-            'national_id' => ['label' => 'الرقم القومي', 'value' => $req->national_id],
+            'username' => ['label' => 'اسم المستخدم', 'value' => $req->username],
             'membership_number' => ['label' => 'رقم العضوية', 'value' => $req->membership_number],
             'phone' => ['label' => 'رقم الهاتف', 'value' => $req->phone],
             'email' => ['label' => 'البريد الإلكتروني', 'value' => $req->email],
-            'governorate' => ['label' => 'المحافظة', 'value' => Workedia_Settings::get_governorates()[$req->governorate] ?? $req->governorate],
             'facility_name' => ['label' => 'اسم المنشأة', 'value' => $req->facility_name]
         ];
 
