@@ -1061,6 +1061,7 @@ class Workedia_Public {
             } else {
                 wp_send_json_error('فشل في إدراج البيانات في قاعدة البيانات: ' . $wpdb->last_error);
             }
+        }
 
         wp_send_json_error('نوع الاستعادة غير مدعوم حالياً');
     }
