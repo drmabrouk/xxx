@@ -154,9 +154,8 @@ class Workedia_Public {
             wp_redirect(home_url('/workedia-admin'));
             exit;
         }
-        ob_start();
-        include WORKEDIA_PLUGIN_DIR . 'templates/public-registration.php';
-        return ob_get_clean();
+        wp_redirect(add_query_arg('auth', 'register', home_url('/workedia-login')));
+        exit;
     }
 
     public function shortcode_services() {
@@ -331,144 +330,415 @@ class Workedia_Public {
             exit;
         }
         $workedia = Workedia_Settings::get_workedia_info();
-        $output = '<div class="workedia-login-container" style="display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; background: #f8fafc;">';
-        $output .= '<div class="workedia-login-box" style="width: 100%; max-width: 420px; background: #ffffff; border-radius: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.08); overflow: hidden; border: 1px solid #f1f5f9;" dir="rtl">';
 
-        $output .= '<div style="background: var(--workedia-dark-color); padding: 35px 25px; text-align: center; color: #fff;">';
-        $output .= '<h3 style="margin: 0 0 10px 0; font-size: 0.9em; opacity: 0.8; font-weight: 400;">أهلاً بك مجدداً</h3>';
-        $output .= '<h2 style="margin: 0; font-weight: 900; color: #fff; font-size: 1.6em; letter-spacing: -0.5px;">'.esc_html($workedia['workedia_name']).'</h2>';
-        $output .= '<p style="margin: 8px 0 0 0; color: #e2e8f0; font-size: 0.85em;">المنصة الرقمية للخدمات النقابية الموحدة</p>';
-        $output .= '</div>';
+        ob_start();
+        ?>
+        <div class="workedia-auth-wrapper" dir="rtl">
+            <div class="workedia-auth-container">
+                <div class="workedia-auth-header">
+                    <?php if ($workedia['workedia_logo']): ?>
+                        <img src="<?php echo esc_url($workedia['workedia_logo']); ?>" alt="Logo" class="auth-logo">
+                    <?php endif; ?>
+                    <h2><?php echo esc_html($workedia['workedia_name']); ?></h2>
+                    <p>بوابتك الرقمية للخدمات الموحدة</p>
+                </div>
 
-        $output .= '<div style="padding: 30px 30px;">';
-        if (isset($_GET['login']) && $_GET['login'] == 'failed') {
-            $output .= '<div style="background: #fff5f5; color: #c53030; padding: 10px; border-radius: 8px; border: 1px solid #feb2b2; margin-bottom: 20px; font-size: 0.85em; text-align: center; font-weight: 600;">⚠️ بيانات الدخول غير صحيحة</div>';
+                <div class="workedia-auth-tabs">
+                    <button class="auth-tab active" onclick="switchAuthTab('login')">تسجيل الدخول</button>
+                    <button class="auth-tab" onclick="switchAuthTab('register')">إنشاء حساب</button>
+                </div>
+
+                <!-- Login Form -->
+                <div id="workedia-login-section" class="auth-section active">
+                    <div class="auth-welcome-msg">مرحباً بك مجدداً! يرجى تسجيل الدخول للوصول إلى حسابك.</div>
+                    <?php if (isset($_GET['login']) && $_GET['login'] == 'failed'): ?>
+                        <div class="auth-alert error">بيانات الدخول غير صحيحة، يرجى المحاولة مرة أخرى.</div>
+                    <?php endif; ?>
+
+                    <form name="loginform" id="workedia_login_form" action="<?php echo esc_url(site_url('wp-login.php', 'login_post')); ?>" method="post">
+                        <div class="auth-input-group">
+                            <input type="text" name="log" id="user_login" class="auth-input" placeholder="اسم المستخدم" required>
+                            <span class="auth-tooltip">أدخل اسم المستخدم أو البريد الإلكتروني الخاص بك</span>
+                        </div>
+                        <div class="auth-input-group">
+                            <input type="password" name="pwd" id="user_pass" class="auth-input" placeholder="كلمة المرور" required>
+                            <span class="auth-tooltip">أدخل كلمة المرور السرية الخاصة بحسابك</span>
+                        </div>
+                        <div class="auth-options">
+                            <label><input name="rememberme" type="checkbox" id="rememberme" value="forever"> تذكرني</label>
+                            <a href="javascript:void(0)" onclick="workediaToggleRecovery()">نسيت كلمة المرور؟</a>
+                        </div>
+                        <button type="submit" name="wp-submit" id="wp-submit" class="auth-btn">
+                            <span class="dashicons dashicons-lock"></span> دخول النظام
+                        </button>
+                        <input type="hidden" name="redirect_to" value="<?php echo home_url('/workedia-admin'); ?>">
+                    </form>
+                </div>
+
+                <!-- Registration Form (Integrated) -->
+                <div id="workedia-register-section" class="auth-section">
+                    <div class="auth-welcome-msg">نسعد بانضمامك إلينا! يرجى ملء البيانات التالية لإنشاء حسابك الجديد.</div>
+
+                    <div class="reg-progress-bar">
+                        <div class="progress-step active" id="p-step-1"></div>
+                        <div class="progress-step" id="p-step-2"></div>
+                        <div class="progress-step" id="p-step-3"></div>
+                        <div class="progress-step" id="p-step-4"></div>
+                    </div>
+
+                    <div id="reg-stages-container">
+                        <!-- Registration Stage 1 -->
+                        <div class="reg-stage active" id="reg-stage-1">
+                            <div class="auth-row">
+                                <div class="auth-input-group">
+                                    <input type="text" id="reg_first_name" class="auth-input" placeholder="الاسم الأول" required>
+                                    <span class="dashicons dashicons-id-alt"></span>
+                                    <span class="auth-tooltip">أهلاً بك! يرجى إدخال اسمك الشخصي الأول</span>
+                                </div>
+                                <div class="auth-input-group">
+                                    <input type="text" id="reg_last_name" class="auth-input" placeholder="اسم العائلة" required>
+                                    <span class="dashicons dashicons-groups"></span>
+                                    <span class="auth-tooltip">يرجى إدخال اسم العائلة أو اللقب الكريم</span>
+                                </div>
+                            </div>
+                            <div class="auth-row">
+                                <div class="auth-input-group">
+                                    <select id="reg_gender" class="auth-input">
+                                        <option value="male">ذكر</option>
+                                        <option value="female">أنثى</option>
+                                    </select>
+                                    <span class="dashicons dashicons-universal-access"></span>
+                                    <span class="auth-tooltip">يسعدنا تحديد الجنس لتخصيص تجربتك</span>
+                                </div>
+                                <div class="auth-input-group">
+                                    <input type="number" id="reg_yob" class="auth-input" placeholder="سنة الميلاد" min="1900" max="<?php echo date('Y'); ?>" required>
+                                    <span class="dashicons dashicons-calendar-alt"></span>
+                                    <span class="auth-tooltip">يرجى إدخال سنة ميلادك (مثلاً: 1990)</span>
+                                </div>
+                            </div>
+                            <button class="auth-btn" onclick="nextRegStage(1)">متابعة <span class="dashicons dashicons-arrow-left-alt"></span></button>
+                        </div>
+
+                        <!-- Registration Stage 2 -->
+                        <div class="reg-stage" id="reg-stage-2">
+                            <div class="auth-row">
+                                <div class="auth-input-group">
+                                    <input type="email" id="reg_email" class="auth-input" placeholder="البريد الإلكتروني" oninput="debounceValidation('email')" required>
+                                    <span class="dashicons dashicons-email"></span>
+                                    <span class="auth-tooltip">أدخل بريدك الإلكتروني لاستلام رمز التحقق الآمن</span>
+                                    <div id="email-validation-msg" class="validation-msg"></div>
+                                </div>
+                                <div class="auth-input-group">
+                                    <input type="text" id="reg_username" class="auth-input" placeholder="اسم المستخدم" oninput="debounceValidation('username')" required>
+                                    <span class="dashicons dashicons-admin-users"></span>
+                                    <span class="auth-tooltip">اختر اسماً فريداً يميزك عند الدخول للنظام</span>
+                                    <div id="username-validation-msg" class="validation-msg"></div>
+                                </div>
+                            </div>
+                            <div class="auth-row">
+                                <div class="auth-input-group">
+                                    <input type="password" id="reg_password" class="auth-input" placeholder="كلمة المرور" required>
+                                    <span class="dashicons dashicons-lock"></span>
+                                    <span class="auth-tooltip">يرجى اختيار كلمة مرور قوية (8 أحرف على الأقل)</span>
+                                </div>
+                                <div class="auth-input-group">
+                                    <input type="password" id="reg_password_confirm" class="auth-input" placeholder="تأكيد كلمة المرور" required>
+                                    <span class="dashicons dashicons-yes-alt"></span>
+                                    <span class="auth-tooltip">يرجى إعادة كتابة كلمة المرور للتأكيد</span>
+                                </div>
+                            </div>
+                            <div class="auth-nav">
+                                <button class="auth-btn-link" onclick="prevRegStage(2)">السابق</button>
+                                <button class="auth-btn" id="btn-reg-stage-2" onclick="nextRegStage(2)">إرسال رمز التحقق</button>
+                            </div>
+                        </div>
+
+                        <!-- Registration Stage 3: OTP -->
+                        <div class="reg-stage" id="reg-stage-3">
+                            <p class="auth-subtitle" style="text-align: center; color: #64748b; margin-bottom: 20px; font-size: 0.9em;">لقد أرسلنا رمزاً مكوناً من 6 أرقام إلى بريدك الإلكتروني.</p>
+                            <div class="auth-input-group">
+                                <input type="text" id="reg_otp" class="auth-input otp-input" placeholder="000000" maxlength="6">
+                                <span class="dashicons dashicons-shield"></span>
+                                <span class="auth-tooltip">أدخل الرمز المكون من 6 أرقام المرسل لبريدك</span>
+                            </div>
+                            <button class="auth-btn" onclick="verifyRegOTP()"><span class="dashicons dashicons-yes-alt"></span> تحقق وإكمال</button>
+                            <p style="text-align: center; margin-top: 15px; font-size: 0.85em; color: #64748b;">لم يصلك الرمز؟ <a href="javascript:void(0)" onclick="sendRegOTP()" style="color: var(--workedia-primary-color); font-weight: 700; text-decoration: none;">إعادة إرسال</a></p>
+                        </div>
+
+                        <!-- Registration Stage 4: Success & Photo -->
+                        <div class="reg-stage" id="reg-stage-4">
+                            <h3 style="text-align: center; margin: 0 0 10px 0; font-weight: 800; color: #10b981;">تم التحقق بنجاح!</h3>
+                            <p style="text-align: center; color: #64748b; margin-bottom: 20px; font-size: 0.9em;">يمكنك الآن إضافة صورة شخصية لتمييز ملفك (اختياري)</p>
+                            <div class="auth-photo-upload" onclick="document.getElementById('reg_photo').click()">
+                                <div id="reg-photo-preview">📸</div>
+                                <input type="file" id="reg_photo" style="display:none" accept="image/*" onchange="previewRegPhoto(this)">
+                            </div>
+                            <button class="auth-btn" onclick="completeReg()">إتمام التسجيل والدخول <span class="dashicons dashicons-unlock"></span></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recovery Modal -->
+            <div id="workedia-recovery-modal" class="auth-modal">
+                <div class="auth-modal-content" dir="rtl">
+                    <button class="modal-close" onclick="workediaToggleRecovery()">&times;</button>
+                    <h3 style="margin-top:0; margin-bottom:25px; text-align:center; font-weight:800;">استعادة كلمة المرور</h3>
+                    <div id="recovery-step-1">
+                        <p style="font-size:14px; color:#64748b; margin-bottom:20px; line-height:1.6;">أدخل اسم المستخدم الخاص بك للتحقق وإرسال رمز الاستعادة.</p>
+                        <div class="auth-input-group">
+                            <input type="text" id="rec_username" class="auth-input" placeholder="اسم المستخدم">
+                        </div>
+                        <button onclick="workediaRequestOTP()" class="auth-btn">إرسال رمز التحقق</button>
+                    </div>
+                    <div id="recovery-step-2" style="display:none;">
+                        <p style="font-size:13px; color:#38a169; margin-bottom:15px;">تم إرسال الرمز بنجاح. يرجى التحقق من بريدك.</p>
+                        <div class="auth-input-group">
+                            <input type="text" id="rec_otp" class="auth-input" placeholder="الرمز (6 أرقام)">
+                        </div>
+                        <div class="auth-input-group">
+                            <input type="password" id="rec_new_pass" class="auth-input" placeholder="كلمة المرور الجديدة">
+                        </div>
+                        <button onclick="workediaResetPassword()" class="auth-btn">تغيير كلمة المرور</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <style>
+            .workedia-auth-wrapper {
+                display: flex; justify-content: center; align-items: center; min-height: 80vh; padding: 20px;
+                background: #f8fafc; font-family: 'Rubik', sans-serif;
+            }
+            .workedia-auth-container {
+                width: 100%; max-width: 500px; background: #fff; border-radius: 24px;
+                box-shadow: 0 20px 40px rgba(0,0,0,0.05); overflow: hidden; border: 1px solid #f1f5f9;
+            }
+            .workedia-auth-header {
+                padding: 40px 30px 20px; text-align: center; background: var(--workedia-dark-color); color: #fff;
+            }
+            .auth-logo { max-height: 60px; margin-bottom: 15px; }
+            .workedia-auth-header h2 { margin: 0; font-size: 1.6em; font-weight: 900; }
+            .workedia-auth-header p { margin: 5px 0 0; opacity: 0.8; font-size: 0.9em; }
+
+            .auth-welcome-msg { text-align: center; color: #64748b; margin-bottom: 25px; font-size: 0.95em; line-height: 1.5; }
+
+            .workedia-auth-tabs { display: flex; border-bottom: 1px solid #f1f5f9; }
+            .auth-tab {
+                flex: 1; padding: 15px; border: none; background: #fdfdfd; cursor: pointer;
+                font-weight: 700; color: #64748b; transition: 0.3s; font-family: 'Rubik', sans-serif;
+            }
+            .auth-tab.active { background: #fff; color: var(--workedia-primary-color); border-bottom: 3px solid var(--workedia-primary-color); }
+
+            .auth-section { display: none; padding: 30px; animation: authFadeIn 0.4s ease; }
+            .auth-section.active { display: block; }
+
+            .auth-alert { padding: 12px; border-radius: 10px; margin-bottom: 20px; font-size: 0.85em; text-align: center; font-weight: 600; }
+            .auth-alert.error { background: #fff5f5; color: #c53030; border: 1px solid #feb2b2; }
+
+            .auth-row { display: flex; gap: 15px; margin-bottom: 15px; }
+            .auth-input-group { position: relative; flex: 1; }
+            .auth-input {
+                width: 100%; padding: 14px 18px 14px 45px; border: 2px solid #f1f5f9; border-radius: 12px;
+                font-size: 0.95em; outline: none; transition: 0.3s; font-family: 'Rubik', sans-serif;
+                background: #fcfcfc;
+            }
+            .auth-input-group .dashicons {
+                position: absolute; left: 15px; top: 50%; transform: translateY(-50%);
+                color: #94a3b8; font-size: 18px; transition: 0.3s; pointer-events: none;
+            }
+            .auth-input:focus + .dashicons + .auth-tooltip, .auth-input:focus + .dashicons { color: var(--workedia-primary-color); }
+            .auth-input:focus { border-color: var(--workedia-primary-color); background: #fff; }
+
+            .auth-tooltip {
+                position: absolute; bottom: 100%; right: 0; background: #334155; color: #fff;
+                padding: 5px 10px; border-radius: 6px; font-size: 0.75em; visibility: hidden;
+                opacity: 0; transition: 0.3s; transform: translateY(5px); pointer-events: none; z-index: 10;
+                white-space: nowrap;
+            }
+            .auth-input-group:hover .auth-tooltip, .auth-input-group:focus-within .auth-tooltip { visibility: visible; opacity: 1; transform: translateY(-5px); }
+
+            .auth-options { display: flex; justify-content: space-between; align-items: center; margin: -5px 0 20px; font-size: 0.85em; }
+            .auth-options label { color: #64748b; display: flex; align-items: center; gap: 6px; }
+            .auth-options a { color: var(--workedia-primary-color); text-decoration: none; font-weight: 600; }
+
+            .auth-btn {
+                width: 100%; padding: 15px; background: var(--workedia-primary-color); color: #fff;
+                border: none; border-radius: 12px; font-weight: 700; cursor: pointer; transition: 0.3s;
+                font-size: 1.05em; font-family: 'Rubik', sans-serif;
+                display: flex; align-items: center; justify-content: center; gap: 10px;
+            }
+            .auth-btn:hover { opacity: 0.9; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
+
+            .reg-stage { display: none; animation: authSlideIn 0.3s ease; }
+            .reg-stage.active { display: block; }
+
+            .auth-nav { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+            .auth-btn-link { background: none; border: none; color: #64748b; font-weight: 600; cursor: pointer; text-decoration: underline; font-family: 'Rubik', sans-serif; }
+
+            .otp-input { text-align: center; letter-spacing: 10px; font-size: 1.5em; font-weight: 900; }
+            .auth-photo-upload {
+                width: 100px; height: 100px; background: #f8fafc; border: 2px dashed #cbd5e0;
+                border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center;
+                font-size: 2em; cursor: pointer; overflow: hidden;
+            }
+            #reg-photo-preview img { width: 100%; height: 100%; object-fit: cover; }
+
+            .auth-modal {
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5);
+                display: none; align-items: center; justify-content: center; z-index: 10000;
+                backdrop-filter: blur(4px);
+            }
+            .auth-modal-content { background: #fff; padding: 40px; border-radius: 24px; width: 90%; max-width: 420px; position: relative; }
+            .modal-close { position: absolute; top: 20px; left: 20px; border: none; background: none; font-size: 24px; cursor: pointer; color: #94a3b8; }
+
+            .validation-msg { font-size: 0.8em; margin-top: 4px; }
+            .validation-msg.error { color: #ef4444; }
+            .validation-msg.success { color: #10b981; }
+
+            @keyframes authFadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes authSlideIn { from { transform: translateX(20px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+            .reg-progress-bar { display: flex; gap: 8px; margin-bottom: 25px; }
+            .progress-step { flex: 1; height: 6px; background: #f1f5f9; border-radius: 10px; transition: 0.4s; }
+            .progress-step.active { background: var(--workedia-primary-color); }
+            .progress-step.complete { background: #10b981; }
+
+            @media (max-width: 480px) {
+                .auth-row { flex-direction: column; gap: 10px; }
+                .auth-tooltip { display: none; } /* Hide tooltips on mobile for better UX */
+            }
+        </style>
+
+        <script>
+        const regData = {};
+        function switchAuthTab(tab) {
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.auth-section').forEach(s => s.classList.remove('active'));
+            if (tab === 'login') {
+                document.querySelector('.auth-tab:first-child').classList.add('active');
+                document.getElementById('workedia-login-section').classList.add('active');
+            } else {
+                document.querySelector('.auth-tab:last-child').classList.add('active');
+                document.getElementById('workedia-register-section').classList.add('active');
+            }
         }
 
-        $output .= '<style>
-            #workedia_login_form p { margin-bottom: 15px; }
-            #workedia_login_form label { display: none; }
-            #workedia_login_form input[type="text"], #workedia_login_form input[type="password"] {
-                width: 100%; padding: 12px 15px; border: 1px solid #e2e8f0; border-radius: 10px;
-                background: #fcfcfc; font-size: 14px; transition: 0.3s; font-family: "Rubik", sans-serif;
+        window.addEventListener('DOMContentLoaded', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('auth') === 'register') {
+                switchAuthTab('register');
             }
-            #workedia_login_form input:focus { border-color: var(--workedia-primary-color); outline: none; background: #fff; }
-            #workedia_login_form .login-remember { display: flex; align-items: center; gap: 8px; font-size: 0.8em; color: #64748b; margin-top: -5px; }
-            #workedia_login_form input[type="submit"] {
-                width: 100%; padding: 14px; background: var(--workedia-primary-color); color: #fff; border: none;
-                border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; transition: 0.3s;
+        });
+
+        function nextRegStage(stage) {
+            if (stage === 1) {
+                regData.first_name = document.getElementById('reg_first_name').value;
+                regData.last_name = document.getElementById('reg_last_name').value;
+                regData.gender = document.getElementById('reg_gender').value;
+                regData.year_of_birth = document.getElementById('reg_yob').value;
+                if (!regData.first_name || !regData.last_name || !regData.year_of_birth) return alert('يرجى إكمال جميع الحقول');
+            } else if (stage === 2) {
+                regData.email = document.getElementById('reg_email').value;
+                regData.username = document.getElementById('reg_username').value;
+                regData.password = document.getElementById('reg_password').value;
+                const confirm = document.getElementById('reg_password_confirm').value;
+                if (!regData.email || !regData.username || !regData.password) return alert('يرجى إكمال جميع الحقول');
+                if (regData.password !== confirm) return alert('كلمات المرور غير متطابقة');
+                if (regData.password.length < 8) return alert('كلمة المرور قصيرة جداً');
+
+                sendRegOTP();
+                return;
             }
-            #workedia_login_form input[type="submit"]:hover { opacity: 0.9; transform: translateY(-1px); }
-            .workedia-login-footer-links { margin-top: 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-            .workedia-footer-btn { text-decoration: none !important; padding: 12px; border-radius: 10px; font-size: 13px; font-weight: 700; text-align: center; transition: 0.2s; border: 1px solid #e2e8f0; color: #4a5568; box-shadow: none !important; }
-            .workedia-footer-btn:hover { background: #f8fafc; border-color: #cbd5e0; }
-            .workedia-footer-btn-primary { background: #f1f5f9; color: var(--workedia-dark-color) !important; border: 1px solid #e2e8f0; }
-            .workedia-footer-btn-primary:hover { background: #e2e8f0; }
-        </style>';
+            goToRegStage(stage + 1);
+        }
 
-        $args = array(
-            'echo' => false,
-            'redirect' => home_url('/workedia-admin'),
-            'form_id' => 'workedia_login_form',
-            'label_remember' => 'تذكرني',
-            'label_log_in' => 'دخول النظام',
-            'remember' => true
-        );
-        $form = wp_login_form($args);
+        function prevRegStage(stage) { goToRegStage(stage - 1); }
+        function goToRegStage(stage) {
+            document.querySelectorAll('.reg-stage').forEach(s => s.classList.remove('active'));
+            document.getElementById('reg-stage-' + stage).classList.add('active');
 
-        // Inject placeholders
-        $form = str_replace('name="log"', 'name="log" placeholder="اسم المستخدم"', $form);
-        $form = str_replace('name="pwd"', 'name="pwd" placeholder="كلمة المرور"', $form);
+            // Update progress bar
+            document.querySelectorAll('.progress-step').forEach((el, idx) => {
+                el.classList.remove('active', 'complete');
+                if (idx + 1 < stage) el.classList.add('complete');
+                else if (idx + 1 === stage) el.classList.add('active');
+            });
+        }
 
-        $output .= $form;
+        let valTimeout;
+        function debounceValidation(type) {
+            clearTimeout(valTimeout);
+            valTimeout = setTimeout(() => {
+                const val = document.getElementById('reg_' + type).value;
+                if (!val) return;
+                const fd = new FormData();
+                fd.append('action', 'workedia_check_username_email');
+                if (type === 'username') fd.append('username', val); else fd.append('email', val);
+                fetch(ajaxurl, {method:'POST', body:fd}).then(r=>r.json()).then(res=>{
+                    const msgEl = document.getElementById(type + '-validation-msg');
+                    if (res.success) {
+                        msgEl.innerText = type === 'username' ? 'متاح' : 'بريد متاح';
+                        msgEl.className = 'validation-msg success';
+                    } else {
+                        msgEl.innerText = res.data.message;
+                        msgEl.className = 'validation-msg error';
+                    }
+                });
+            }, 500);
+        }
 
-        $output .= '<div class="workedia-login-footer-links" style="grid-template-columns: 1fr;">';
-        $output .= '<a href="'.home_url('/workedia-register').'" class="workedia-footer-btn">إنشاء حساب جديد</a>';
-        $output .= '<a href="javascript:void(0)" onclick="workediaToggleActivation()" class="workedia-footer-btn" style="margin-top:10px;">تفعيل حساب موجود</a>';
-        $output .= '<a href="javascript:void(0)" onclick="workediaToggleRecovery()" style="color: #64748b; font-size: 12px; text-decoration: none; text-align: center; margin-top: 10px;">نسيت كلمة المرور؟</a>';
-        $output .= '</div>';
+        function sendRegOTP() {
+            const btn = document.getElementById('btn-reg-stage-2');
+            btn.disabled = true; btn.innerText = 'جاري الإرسال...';
+            const fd = new FormData(); fd.append('action', 'workedia_register_send_otp'); fd.append('email', regData.email);
+            fetch(ajaxurl, {method:'POST', body:fd}).then(r=>r.json()).then(res=>{
+                btn.disabled = false; btn.innerText = 'إرسال رمز التحقق';
+                if (res.success) goToRegStage(3); else alert(res.data);
+            });
+        }
 
-        // Recovery Modal
-        $output .= '<div id="workedia-recovery-modal" class="workedia-modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center; padding:20px;">';
-        $output .= '<div class="workedia-modal-content" style="background:white; width:100%; max-width:400px; padding:35px; border-radius:20px; position:relative;">';
-        $output .= '<button onclick="workediaToggleRecovery()" style="position:absolute; top:20px; left:20px; border:none; background:none; font-size:24px; cursor:pointer; color:#94a3b8;">&times;</button>';
-        $output .= '<h3 style="margin-top:0; margin-bottom:25px; text-align:center; font-weight:800;">استعادة كلمة المرور</h3>';
-        $output .= '<div id="recovery-step-1">';
-        $output .= '<p style="font-size:14px; color:#64748b; margin-bottom:20px; line-height:1.6;">أدخل اسم المستخدم الخاص بك للتحقق وإرسال رمز الاستعادة.</p>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:20px;"><label class="workedia-label">اسم المستخدم:</label><input type="text" id="rec_username" class="workedia-input" style="width:100%;"></div>';
-        $output .= '<button onclick="workediaRequestOTP()" class="workedia-btn" style="width:100%;">إرسال رمز التحقق</button>';
-        $output .= '</div>';
-        $output .= '<div id="recovery-step-2" style="display:none;">';
-        $output .= '<p style="font-size:13px; color:#38a169; margin-bottom:15px;">تم إرسال الرمز بنجاح. يرجى التحقق من بريدك.</p>';
-        $output .= '<input type="text" id="rec_otp" class="workedia-input" placeholder="رمز التحقق (6 أرقام)" style="margin-bottom:10px; width:100%;">';
-        $output .= '<input type="password" id="rec_new_pass" class="workedia-input" placeholder="كلمة المرور الجديدة" style="margin-bottom:20px; width:100%;">';
-        $output .= '<button onclick="workediaResetPassword()" class="workedia-btn" style="width:100%;">تغيير كلمة المرور</button>';
-        $output .= '</div>';
-        $output .= '</div></div>';
+        function verifyRegOTP() {
+            const otp = document.getElementById('reg_otp').value;
+            const fd = new FormData(); fd.append('action', 'workedia_register_verify_otp');
+            fd.append('email', regData.email); fd.append('otp', otp);
+            fetch(ajaxurl, {method:'POST', body:fd}).then(r=>r.json()).then(res=>{
+                if (res.success) goToRegStage(4); else alert(res.data);
+            });
+        }
 
-        // Activation Modal (3-Step Sequential Workflow)
-        $output .= '<div id="workedia-activation-modal" class="workedia-modal-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:10000; justify-content:center; align-items:center; padding:20px;">';
-        $output .= '<div class="workedia-modal-content" style="background:white; width:100%; max-width:450px; padding:40px; border-radius:24px; position:relative;">';
-        $output .= '<button onclick="workediaToggleActivation()" style="position:absolute; top:20px; left:20px; border:none; background:none; font-size:24px; cursor:pointer; color:#94a3b8;">&times;</button>';
-        $output .= '<div style="text-align:center; margin-bottom:30px;"><h3 style="margin:0; font-weight:900;">تفعيل الحساب الرقمي</h3><p style="color:#64748b; font-size:13px; margin-top:5px;">خطوات بسيطة للوصول لخدماتك الإلكترونية</p></div>';
+        function previewRegPhoto(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = e => document.getElementById('reg-photo-preview').innerHTML = `<img src="${e.target.result}">`;
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
 
-        // Step 1: Verification
-        $output .= '<div id="activation-step-1">';
-        $output .= '<div style="display:flex; justify-content:center; gap:10px; margin-bottom:20px;"><span style="width:30px; height:30px; background:var(--workedia-primary-color); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">1</span><span style="width:30px; height:30px; background:#edf2f7; color:#718096; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">2</span><span style="width:30px; height:30px; background:#edf2f7; color:#718096; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">3</span></div>';
-        $output .= '<p style="font-size:14px; color:#4a5568; margin-bottom:20px; text-align:center;">المرحلة الأولى: التحقق من الهوية بالسجلات</p>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:15px;"><input type="text" id="act_username" class="workedia-input" placeholder="اسم المستخدم" style="width:100%;"></div>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:15px;"><input type="text" id="act_mem_no" class="workedia-input" placeholder="رقم القيد النقابي" style="width:100%;"></div>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:15px;"><input type="text" id="act_first_name" class="workedia-input" placeholder="الاسم الأول" style="width:100%;"></div>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:15px;"><input type="text" id="act_last_name" class="workedia-input" placeholder="اسم العائلة" style="width:100%;"></div>';
-        $output .= '<button onclick="workediaActivateStep1()" class="workedia-btn" style="width:100%;">تحقق وانتقل للخطوة التالية</button>';
-        $output .= '</div>';
+        function completeReg() {
+            const btn = document.querySelector('#reg-stage-4 .auth-btn');
+            btn.disabled = true; btn.innerText = 'جاري المعالجة...';
+            const fd = new FormData();
+            for (const k in regData) fd.append(k, regData[k]);
+            fd.append('action', 'workedia_register_complete');
+            const photo = document.getElementById('reg_photo').files[0];
+            if (photo) fd.append('profile_image', photo);
+            fetch(ajaxurl, {method:'POST', body:fd}).then(r=>r.json()).then(res=>{
+                if (res.success) window.location.href = res.data.redirect_url;
+                else { btn.disabled = false; btn.innerText = 'إتمام التسجيل والدخول'; alert(res.data); }
+            });
+        }
 
-        // Step 2: Contact Confirmation
-        $output .= '<div id="activation-step-2" style="display:none;">';
-        $output .= '<div style="display:flex; justify-content:center; gap:10px; margin-bottom:20px;"><span style="width:30px; height:30px; background:#38a169; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">✓</span><span style="width:30px; height:30px; background:var(--workedia-primary-color); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">2</span><span style="width:30px; height:30px; background:#edf2f7; color:#718096; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">3</span></div>';
-        $output .= '<p style="font-size:14px; color:#4a5568; margin-bottom:20px; text-align:center;">المرحلة الثانية: تأكيد بيانات التواصل</p>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:15px;"><input type="email" id="act_email" class="workedia-input" placeholder="البريد الإلكتروني المعتمد" style="width:100%;"></div>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:15px;"><input type="text" id="act_phone" class="workedia-input" placeholder="رقم الهاتف الحالي" style="width:100%;"></div>';
-        $output .= '<button onclick="workediaActivateStep2()" class="workedia-btn" style="width:100%;">تأكيد البيانات</button>';
-        $output .= '</div>';
-
-        // Step 3: Account Completion
-        $output .= '<div id="activation-step-3" style="display:none;">';
-        $output .= '<div style="display:flex; justify-content:center; gap:10px; margin-bottom:20px;"><span style="width:30px; height:30px; background:#38a169; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">✓</span><span style="width:30px; height:30px; background:#38a169; color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">✓</span><span style="width:30px; height:30px; background:var(--workedia-primary-color); color:white; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:bold;">3</span></div>';
-        $output .= '<p style="font-size:14px; color:#4a5568; margin-bottom:20px; text-align:center;">المرحلة الثالثة: تعيين كلمة المرور</p>';
-        $output .= '<div class="workedia-form-group" style="margin-bottom:20px;"><input type="password" id="act_pass" class="workedia-input" placeholder="كلمة المرور (10 خانات على الأقل)" style="width:100%;"></div>';
-        $output .= '<button onclick="workediaActivateFinal()" class="workedia-btn" style="width:100%;">إكمال التنشيط والدخول</button>';
-        $output .= '</div>';
-        $output .= '</div></div>';
-
-        $output .= '<script>
         function workediaToggleRecovery() {
             const m = document.getElementById("workedia-recovery-modal");
-            m.style.display = m.style.display === "none" ? "flex" : "none";
-        }
-        function workediaToggleActivation() {
-            const m = document.getElementById("workedia-activation-modal");
-            m.style.display = m.style.display === "none" ? "flex" : "none";
-            document.getElementById("activation-step-1").style.display = "block";
-            document.getElementById("activation-step-2").style.display = "none";
+            m.style.display = m.style.display === "flex" ? "none" : "flex";
         }
         function workediaRequestOTP() {
             const username = document.getElementById("rec_username").value;
             const fd = new FormData(); fd.append("action", "workedia_forgot_password_otp"); fd.append("username", username);
-            fetch("'.admin_url('admin-ajax.php').'", {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
-                if(res.success) {
-                    document.getElementById("recovery-step-1").style.display="none";
-                    document.getElementById("recovery-step-2").style.display="block";
-                } else alert(res.data);
+            fetch(ajaxurl, {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
+                if(res.success) { document.getElementById("recovery-step-1").style.display="none"; document.getElementById("recovery-step-2").style.display="block"; } else alert(res.data);
             });
-        }
-        function workediaActivateStep2() {
-            const email = document.getElementById("act_email").value;
-            const phone = document.getElementById("act_phone").value;
-            if(!/^\S+@\S+\.\S+$/.test(email)) return alert("يرجى إدخال بريد إلكتروني صحيح");
-            if(phone.length < 10) return alert("يرجى إدخال رقم هاتف صحيح");
-            document.getElementById("activation-step-2").style.display="none";
-            document.getElementById("activation-step-3").style.display="block";
         }
         function workediaResetPassword() {
             const username = document.getElementById("rec_username").value;
@@ -476,50 +746,13 @@ class Workedia_Public {
             const pass = document.getElementById("rec_new_pass").value;
             const fd = new FormData(); fd.append("action", "workedia_reset_password_otp");
             fd.append("username", username); fd.append("otp", otp); fd.append("new_password", pass);
-            fetch("'.admin_url('admin-ajax.php').'", {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
+            fetch(ajaxurl, {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
                 if(res.success) { alert(res.data); location.reload(); } else alert(res.data);
             });
         }
-        function workediaActivateStep1() {
-            const username = document.getElementById("act_username").value;
-            const mem = document.getElementById("act_mem_no").value;
-            const first = document.getElementById("act_first_name").value;
-            const last = document.getElementById("act_last_name").value;
-            const fd = new FormData(); fd.append("action", "workedia_activate_account_step1");
-            fd.append("username", username); fd.append("membership_number", mem);
-            fd.append("first_name", first); fd.append("last_name", last);
-            fetch("'.admin_url('admin-ajax.php').'", {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
-                if(res.success) {
-                    document.getElementById("activation-step-1").style.display="none";
-                    document.getElementById("activation-step-2").style.display="block";
-                } else alert(res.data);
-            });
-        }
-        function workediaActivateFinal() {
-            const username = document.getElementById("act_username").value;
-            const mem = document.getElementById("act_mem_no").value;
-            const first = document.getElementById("act_first_name").value;
-            const last = document.getElementById("act_last_name").value;
-            const email = document.getElementById("act_email").value;
-            const phone = document.getElementById("act_phone").value;
-            const pass = document.getElementById("act_pass").value;
-            if(!/^\S+@\S+\.\S+$/.test(email)) return alert("يرجى إدخال بريد إلكتروني صحيح");
-            if(pass.length < 10) return alert("كلمة المرور يجب أن تكون 10 أحرف على الأقل");
-            const fd = new FormData(); fd.append("action", "workedia_activate_account_final");
-            fd.append("username", username); fd.append("membership_number", mem);
-            fd.append("first_name", first); fd.append("last_name", last);
-            fd.append("email", email); fd.append("phone", phone); fd.append("password", pass);
-            fetch("'.admin_url('admin-ajax.php').'", {method:"POST", body:fd}).then(r=>r.json()).then(res=>{
-                if(res.success) { alert(res.data); location.reload(); } else alert(res.data);
-            });
-        }
-
-        </script>';
-
-        $output .= '</div>'; // End padding
-        $output .= '</div>'; // End box
-        $output .= '</div>'; // End container
-        return $output;
+        </script>
+        <?php
+        return ob_get_clean();
     }
 
     public function shortcode_admin_dashboard() {
@@ -1510,26 +1743,6 @@ class Workedia_Public {
         wp_send_json_success('تمت إعادة تعيين كلمة المرور بنجاح. يمكنك الآن تسجيل الدخول');
     }
 
-    public function ajax_activate_account_step1() {
-        $username = sanitize_text_field($_POST['username'] ?? '');
-        $membership_number = sanitize_text_field($_POST['membership_number'] ?? '');
-        $first_name = sanitize_text_field($_POST['first_name'] ?? '');
-        $last_name = sanitize_text_field($_POST['last_name'] ?? '');
-
-        $member = Workedia_DB::get_member_by_member_username($username);
-        if (!$member) wp_send_json_error('اسم المستخدم غير موجود في السجلات.');
-
-        if ($member->membership_number !== $membership_number) {
-            wp_send_json_error('بيانات التحقق غير صحيحة، يرجى مراجعة رقم العضوية.');
-        }
-
-        if (trim($member->first_name) !== trim($first_name) || trim($member->last_name) !== trim($last_name)) {
-            wp_send_json_error('بيانات الاسم غير مطابقة للسجلات.');
-        }
-
-        wp_send_json_success('تم التحقق بنجاح. يرجى إكمال بيانات الحساب');
-    }
-
     public function ajax_get_template_ajax() {
         if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
         $type = sanitize_text_field($_POST['type']);
@@ -1547,46 +1760,6 @@ class Workedia_Public {
     }
 
 
-
-    public function ajax_activate_account_final() {
-        $username = sanitize_text_field($_POST['username'] ?? '');
-        $membership_number = sanitize_text_field($_POST['membership_number'] ?? '');
-        $first_name = sanitize_text_field($_POST['first_name'] ?? '');
-        $last_name = sanitize_text_field($_POST['last_name'] ?? '');
-        $new_email = sanitize_email($_POST['email'] ?? '');
-        $new_phone = sanitize_text_field($_POST['phone'] ?? '');
-        $new_pass = $_POST['password'] ?? '';
-
-        $member = Workedia_DB::get_member_by_member_username($username);
-        if (!$member || $member->membership_number !== $membership_number || trim($member->first_name) !== trim($first_name) || trim($member->last_name) !== trim($last_name)) {
-            wp_send_json_error('فشل التحقق من الهوية');
-        }
-
-        if (strlen($new_pass) < 10 || !preg_match('/^[a-zA-Z0-9]+$/', $new_pass)) {
-            wp_send_json_error('كلمة المرور يجب أن تكون 10 أحرف على الأقل وتتكون من حروف وأرقام فقط');
-        }
-
-        if (!is_email($new_email)) wp_send_json_error('بريد إلكتروني غير صحيح');
-
-        // Update member record
-        Workedia_DB::update_member($member->id, ['email' => $new_email, 'phone' => $new_phone]);
-
-        // Update WP User
-        if ($member->wp_user_id) {
-            wp_update_user([
-                'ID' => $member->wp_user_id,
-                'user_email' => $new_email,
-                'user_pass' => $new_pass
-            ]);
-            update_user_meta($member->wp_user_id, 'workedia_phone', $new_phone);
-            delete_user_meta($member->wp_user_id, 'workedia_temp_pass');
-        }
-
-        wp_send_json_success('تم تفعيل الحساب بنجاح. يمكنك الآن تسجيل الدخول');
-
-        // Send Welcome Notification
-        Workedia_Notifications::send_template_notification($member->id, 'welcome_activation');
-    }
 
     public function ajax_save_page_settings() {
         if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
