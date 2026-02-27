@@ -21,7 +21,8 @@ class Workedia_Activator {
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             username varchar(100) NOT NULL,
             member_code tinytext,
-            name tinytext NOT NULL,
+            first_name tinytext NOT NULL,
+            last_name tinytext NOT NULL,
             gender enum('male', 'female') DEFAULT 'male',
             residence_street text,
             residence_city tinytext,
@@ -361,10 +362,41 @@ class Workedia_Activator {
 
         $members_table = $wpdb->prefix . 'workedia_members';
         if ($wpdb->get_var("SHOW TABLES LIKE '$members_table'")) {
-            // Fix Member ID to Member ID (legacy fix if needed)
-            $col_member = $wpdb->get_results("SHOW COLUMNS FROM $members_table LIKE 'member_id'");
-            if (!empty($col_member)) {
-                $wpdb->query("ALTER TABLE $members_table CHANGE member_id member_id mediumint(9)");
+            // Rename national_id to username if it exists
+            $col_national = $wpdb->get_results("SHOW COLUMNS FROM $members_table LIKE 'national_id'");
+            if (!empty($col_national)) {
+                $wpdb->query("ALTER TABLE $members_table CHANGE national_id username varchar(100) NOT NULL");
+            }
+
+            // Split name into first_name and last_name if name exists
+            $col_name = $wpdb->get_results("SHOW COLUMNS FROM $members_table LIKE 'name'");
+            if (!empty($col_name)) {
+                // Ensure first_name and last_name columns exist
+                $col_first = $wpdb->get_results("SHOW COLUMNS FROM $members_table LIKE 'first_name'");
+                if (empty($col_first)) {
+                    $wpdb->query("ALTER TABLE $members_table ADD first_name tinytext NOT NULL AFTER username");
+                    $wpdb->query("ALTER TABLE $members_table ADD last_name tinytext NOT NULL AFTER first_name");
+
+                    // Migrate data
+                    $existing_members = $wpdb->get_results("SELECT id, name FROM $members_table");
+                    foreach ($existing_members as $m) {
+                        $parts = explode(' ', $m->name);
+                        $first = $parts[0];
+                        $last = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : '.';
+                        $wpdb->update($members_table, ['first_name' => $first, 'last_name' => $last], ['id' => $m->id]);
+                    }
+                }
+                // Drop old name column
+                $wpdb->query("ALTER TABLE $members_table DROP COLUMN name");
+            }
+
+            // Drop geographic columns if they exist
+            $cols_to_drop = ['governorate', 'province'];
+            foreach ($cols_to_drop as $col) {
+                $exists = $wpdb->get_results("SHOW COLUMNS FROM $members_table LIKE '$col'");
+                if (!empty($exists)) {
+                    $wpdb->query("ALTER TABLE $members_table DROP COLUMN $col");
+                }
             }
         }
     }
@@ -425,6 +457,16 @@ class Workedia_Activator {
                 "UPDATE {$wpdb->prefix}usermeta SET meta_key = %s WHERE meta_key = %s",
                 $new, $old
             ));
+        }
+
+        // Split name for existing users in usermeta
+        $users = get_users(['fields' => ['ID', 'display_name']]);
+        foreach ($users as $u) {
+            if (!get_user_meta($u->ID, 'first_name', true)) {
+                $parts = explode(' ', $u->display_name);
+                update_user_meta($u->ID, 'first_name', $parts[0]);
+                update_user_meta($u->ID, 'last_name', isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : '.');
+            }
         }
     }
 
@@ -497,7 +539,7 @@ class Workedia_Activator {
 
     private static function sync_missing_member_accounts() {
         global $wpdb;
-        $members = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}workedia_members WHERE wp_user_id IS NULL OR wp_user_id = 0");
+        $members = $wpdb->get_results("SELECT *, CONCAT(first_name, ' ', last_name) as name FROM {$wpdb->prefix}workedia_members WHERE wp_user_id IS NULL OR wp_user_id = 0");
         foreach ($members as $m) {
             $digits = '';
             for ($i = 0; $i < 10; $i++) {

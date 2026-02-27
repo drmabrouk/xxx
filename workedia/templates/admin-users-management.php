@@ -17,7 +17,7 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
             <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
                 <h4 style="margin-top:0;">استيراد أعضاء (Members)</h4>
-                <p style="font-size: 12px; color: #64748b; margin-bottom: 15px;">(اسم المستخدم، الاسم، رقم الهاتف، البريد الإلكتروني)</p>
+                <p style="font-size: 12px; color: #64748b; margin-bottom: 15px;">(اسم المستخدم، الاسم الأول، اسم العائلة، رقم الهاتف، البريد الإلكتروني)</p>
                 <form method="post" enctype="multipart/form-data">
                     <?php wp_nonce_field('workedia_admin_action', 'workedia_admin_nonce'); ?>
                     <input type="file" name="member_csv_file" accept=".csv" required style="margin-bottom:10px; width:100%;">
@@ -26,7 +26,7 @@
             </div>
             <div style="background: #fff; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
                 <h4 style="margin-top:0;">استيراد مستخدمين/مسؤولين (Staff)</h4>
-                <p style="font-size: 12px; color: #64748b; margin-bottom: 15px;">(اسم المستخدم، البريد، الاسم، الكود، المسمى، الهاتف، كلمة المرور)</p>
+                <p style="font-size: 12px; color: #64748b; margin-bottom: 15px;">(اسم المستخدم، البريد، الاسم الأول، اسم العائلة، الكود، المسمى، الهاتف، كلمة المرور)</p>
                 <form method="post" enctype="multipart/form-data">
                     <?php wp_nonce_field('workedia_admin_action', 'workedia_admin_nonce'); ?>
                     <input type="file" name="csv_file" accept=".csv" required style="margin-bottom:10px; width:100%;">
@@ -75,7 +75,7 @@
                 <tr>
                     <th style="width: 40px;"><input type="checkbox" onclick="toggleAllUsers(this)"></th>
                     <th>اسم المستخدم / الكود</th>
-                    <th>الاسم الكامل</th>
+                    <th>الاسم</th>
                     <th>الدور</th>
                     <th>رقم التواصل</th>
                     <th>الإجراءات</th>
@@ -134,9 +134,19 @@
                                     <?php if ($member_id): ?>
                                         <a href="<?php echo add_query_arg(['workedia_tab' => 'member-profile', 'member_id' => $member_id]); ?>" class="workedia-btn workedia-btn-outline" style="padding: 5px 12px; font-size: 12px; height: 32px; text-decoration:none;">الملف</a>
                                     <?php endif; ?>
+                                    <?php
+                                    $u_first_name = get_user_meta($u->ID, 'first_name', true);
+                                    $u_last_name = get_user_meta($u->ID, 'last_name', true);
+                                    if (!$u_first_name && $u->display_name) {
+                                        $parts = explode(' ', $u->display_name);
+                                        $u_first_name = $parts[0];
+                                        $u_last_name = isset($parts[1]) ? implode(' ', array_slice($parts, 1)) : '';
+                                    }
+                                    ?>
                                     <button onclick='workediaEditUser(<?php echo esc_attr(wp_json_encode(array(
                                         "id" => $u->ID,
-                                        "name" => $u->display_name,
+                                        "first_name" => $u_first_name,
+                                        "last_name" => $u_last_name,
                                         "email" => $u->user_email,
                                         "login" => $u->user_login,
                                         "role" => $role_slug,
@@ -178,8 +188,12 @@
                 <?php wp_nonce_field('workediaMemberAction', 'workedia_nonce'); ?>
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; padding: 25px;">
                     <div class="workedia-form-group">
-                        <label class="workedia-label">الاسم الكامل:</label>
-                        <input type="text" name="display_name" class="workedia-input" required>
+                        <label class="workedia-label">الاسم الأول:</label>
+                        <input type="text" name="first_name" class="workedia-input" required>
+                    </div>
+                    <div class="workedia-form-group">
+                        <label class="workedia-label">اسم العائلة:</label>
+                        <input type="text" name="last_name" class="workedia-input" required>
                     </div>
                     <div class="workedia-form-group">
                         <label class="workedia-label">اسم المستخدم / الكود:</label>
@@ -241,8 +255,12 @@
                 <input type="hidden" name="edit_officer_id" id="edit_user_db_id">
                 <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; padding: 25px;">
                     <div class="workedia-form-group">
-                        <label class="workedia-label">الاسم الكامل:</label>
-                        <input type="text" name="display_name" id="edit_user_display_name" class="workedia-input" required>
+                        <label class="workedia-label">الاسم الأول:</label>
+                        <input type="text" name="first_name" id="edit_user_first_name" class="workedia-input" required>
+                    </div>
+                    <div class="workedia-form-group">
+                        <label class="workedia-label">اسم العائلة:</label>
+                        <input type="text" name="last_name" id="edit_user_last_name" class="workedia-input" required>
                     </div>
                     <div class="workedia-form-group">
                         <label class="workedia-label">اسم المستخدم / الكود:</label>
@@ -338,7 +356,8 @@
 
     window.workediaEditUser = function(u) {
         document.getElementById('edit_user_db_id').value = u.id;
-        document.getElementById('edit_user_display_name').value = u.name;
+        document.getElementById('edit_user_first_name').value = u.first_name;
+        document.getElementById('edit_user_last_name').value = u.last_name;
         document.getElementById('edit_user_code').value = u.member_id_attr;
         document.getElementById('edit_user_phone').value = u.phone;
         document.getElementById('edit_user_email').value = u.email;

@@ -16,7 +16,7 @@ class Workedia_DB {
     public static function get_members($args = array()) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'workedia_members';
-        $query = "SELECT * FROM $table_name WHERE 1=1";
+        $query = "SELECT *, CONCAT(first_name, ' ', last_name) as name FROM $table_name WHERE 1=1";
         $params = array();
 
         $limit = isset($args['limit']) ? intval($args['limit']) : 20;
@@ -31,13 +31,14 @@ class Workedia_DB {
         }
 
         if (isset($args['search']) && !empty($args['search'])) {
-            $query .= " AND (name LIKE %s OR username LIKE %s OR membership_number LIKE %s)";
+            $query .= " AND (first_name LIKE %s OR last_name LIKE %s OR username LIKE %s OR membership_number LIKE %s)";
+            $params[] = '%' . $wpdb->esc_like($args['search']) . '%';
             $params[] = '%' . $wpdb->esc_like($args['search']) . '%';
             $params[] = '%' . $wpdb->esc_like($args['search']) . '%';
             $params[] = '%' . $wpdb->esc_like($args['search']) . '%';
         }
 
-        $query .= " ORDER BY sort_order ASC, name ASC";
+        $query .= " ORDER BY sort_order ASC, first_name ASC, last_name ASC";
 
         if ($limit != -1) {
             $query .= " LIMIT %d OFFSET %d";
@@ -53,24 +54,24 @@ class Workedia_DB {
 
     public static function get_member_by_id($id) {
         global $wpdb;
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_members WHERE id = %d", $id));
+        return $wpdb->get_row($wpdb->prepare("SELECT *, CONCAT(first_name, ' ', last_name) as name FROM {$wpdb->prefix}workedia_members WHERE id = %d", $id));
     }
 
     public static function get_member_by_member_username($username) {
         global $wpdb;
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_members WHERE username = %s", $username));
+        return $wpdb->get_row($wpdb->prepare("SELECT *, CONCAT(first_name, ' ', last_name) as name FROM {$wpdb->prefix}workedia_members WHERE username = %s", $username));
     }
 
     public static function get_member_by_membership_number($membership_number) {
         global $wpdb;
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_members WHERE membership_number = %s", $membership_number));
+        return $wpdb->get_row($wpdb->prepare("SELECT *, CONCAT(first_name, ' ', last_name) as name FROM {$wpdb->prefix}workedia_members WHERE membership_number = %s", $membership_number));
     }
 
     public static function get_member_by_username($username) {
         $user = get_user_by('login', $username);
         if (!$user) return null;
         global $wpdb;
-        return $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_members WHERE wp_user_id = %d", $user->ID));
+        return $wpdb->get_row($wpdb->prepare("SELECT *, CONCAT(first_name, ' ', last_name) as name FROM {$wpdb->prefix}workedia_members WHERE wp_user_id = %d", $user->ID));
     }
 
     public static function add_member($data) {
@@ -88,7 +89,9 @@ class Workedia_DB {
             return new WP_Error('duplicate_username', 'اسم المستخدم مسجل مسبقاً.');
         }
 
-        $name = sanitize_text_field($data['name'] ?? '');
+        $first_name = sanitize_text_field($data['first_name'] ?? '');
+        $last_name = sanitize_text_field($data['last_name'] ?? '');
+        $full_name = trim($first_name . ' ' . $last_name);
         $email = sanitize_email($data['email'] ?? '');
 
         // Auto-create WordPress User for the Member
@@ -106,7 +109,7 @@ class Workedia_DB {
         $wp_user_id = wp_insert_user(array(
             'user_login' => $username,
             'user_email' => $email ?: $username . '@irseg.org',
-            'display_name' => $name,
+            'display_name' => $full_name,
             'user_pass' => $temp_pass,
             'role' => 'subscriber'
         ));
@@ -114,13 +117,16 @@ class Workedia_DB {
         if (!is_wp_error($wp_user_id)) {
             $wp_user_id = $wp_user_id;
             update_user_meta($wp_user_id, 'workedia_temp_pass', $temp_pass);
+            update_user_meta($wp_user_id, 'first_name', $first_name);
+            update_user_meta($wp_user_id, 'last_name', $last_name);
         } else {
             return $wp_user_id; // Return WP_Error
         }
 
         $insert_data = array(
             'username' => $username,
-            'name' => $name,
+            'first_name' => $first_name,
+            'last_name' => $last_name,
             'gender' => sanitize_text_field($data['gender'] ?? 'male'),
             'residence_street' => sanitize_textarea_field($data['residence_street'] ?? ''),
             'residence_city' => sanitize_text_field($data['residence_city'] ?? ''),
@@ -141,7 +147,7 @@ class Workedia_DB {
         $id = $wpdb->insert_id;
 
         if ($id) {
-            Workedia_Logger::log('إضافة عضو جديد', "تمت إضافة العضو: $name بنجاح (اسم المستخدم: $username)");
+            Workedia_Logger::log('إضافة عضو جديد', "تمت إضافة العضو: $full_name بنجاح (اسم المستخدم: $username)");
         }
 
         return $id;
@@ -153,7 +159,7 @@ class Workedia_DB {
 
         $update_data = array();
         $fields = [
-            'username', 'name', 'gender',
+            'username', 'first_name', 'last_name', 'gender',
             'residence_street', 'residence_city', 'membership_number',
             'membership_start_date', 'membership_expiration_date',
             'membership_status', 'email', 'phone', 'alt_phone', 'notes'
@@ -181,7 +187,13 @@ class Workedia_DB {
         $member = self::get_member_by_id($id);
         if ($member && $member->wp_user_id) {
             $user_data = ['ID' => $member->wp_user_id];
-            if (isset($data['name'])) $user_data['display_name'] = $data['name'];
+            if (isset($data['first_name']) || isset($data['last_name'])) {
+                $f = $data['first_name'] ?? $member->first_name;
+                $l = $data['last_name'] ?? $member->last_name;
+                $user_data['display_name'] = trim($f . ' ' . $l);
+                update_user_meta($member->wp_user_id, 'first_name', $f);
+                update_user_meta($member->wp_user_id, 'last_name', $l);
+            }
             if (isset($data['email'])) $user_data['user_email'] = $data['email'];
             if (count($user_data) > 1) {
                 wp_update_user($user_data);
@@ -346,6 +358,12 @@ class Workedia_DB {
 
     public static function get_member_stats($member_id) {
         return array();
+    }
+
+    public static function get_next_sort_order() {
+        global $wpdb;
+        $max = $wpdb->get_var("SELECT MAX(sort_order) FROM {$wpdb->prefix}workedia_members");
+        return ($max ? intval($max) : 0) + 1;
     }
 
     public static function delete_all_data() {
@@ -516,7 +534,7 @@ class Workedia_DB {
             $params[] = intval($args['member_id']);
         }
 
-        $query = "SELECT r.*, s.name as service_name, m.name as member_name
+        $query = "SELECT r.*, s.name as service_name, CONCAT(m.first_name, ' ', m.last_name) as member_name, m.first_name, m.last_name
                   FROM {$wpdb->prefix}workedia_service_requests r
                   JOIN {$wpdb->prefix}workedia_services s ON r.service_id = s.id
                   JOIN {$wpdb->prefix}workedia_members m ON r.member_id = m.id
@@ -619,7 +637,7 @@ class Workedia_DB {
             $params[] = $s;
         }
 
-        $query = "SELECT t.*, m.name as member_name, m.photo_url as member_photo
+        $query = "SELECT t.*, CONCAT(m.first_name, ' ', m.last_name) as member_name, m.photo_url as member_photo
                   FROM {$wpdb->prefix}workedia_tickets t
                   JOIN {$wpdb->prefix}workedia_members m ON t.member_id = m.id
                   WHERE $where
@@ -634,7 +652,7 @@ class Workedia_DB {
     public static function get_ticket($id) {
         global $wpdb;
         return $wpdb->get_row($wpdb->prepare(
-            "SELECT t.*, m.name as member_name, m.phone as member_phone
+            "SELECT t.*, CONCAT(m.first_name, ' ', m.last_name) as member_name, m.phone as member_phone
              FROM {$wpdb->prefix}workedia_tickets t
              JOIN {$wpdb->prefix}workedia_members m ON t.member_id = m.id
              WHERE t.id = %d",

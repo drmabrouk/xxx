@@ -164,14 +164,16 @@
     };
 
     window.workediaSaveProfile = function() {
-        const name = document.getElementById('workedia_edit_display_name').value;
+        const firstName = document.getElementById('workedia_edit_first_name').value;
+        const lastName = document.getElementById('workedia_edit_last_name').value;
         const email = document.getElementById('workedia_edit_user_email').value;
         const pass = document.getElementById('workedia_edit_user_pass').value;
         const nonce = '<?php echo wp_create_nonce("workedia_profile_action"); ?>';
 
         const formData = new FormData();
         formData.append('action', 'workedia_update_profile_ajax');
-        formData.append('display_name', name);
+        formData.append('first_name', firstName);
+        formData.append('last_name', lastName);
         formData.append('user_email', email);
         formData.append('user_pass', pass);
         formData.append('nonce', nonce);
@@ -305,6 +307,38 @@
         fd.append('nonce', '<?php echo wp_create_nonce("workedia_admin_action"); ?>');
         fetch(ajaxurl, {method: 'POST', body: fd}).then(r=>r.json()).then(res=>{
             if(res.success) { workediaShowNotification('تم حفظ التنبيه'); location.reload(); }
+            else alert(res.data);
+        });
+    });
+
+    window.workediaLoadNotifTemplate = function(type) {
+        const fd = new FormData();
+        fd.append('action', 'workedia_get_template_ajax');
+        fd.append('type', type);
+        fetch(ajaxurl, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) {
+                const t = res.data;
+                document.getElementById('tmpl_type').value = t.template_type;
+                document.getElementById('tmpl_subject').value = t.subject;
+                document.getElementById('tmpl_body').value = t.body;
+                document.getElementById('tmpl_days').value = t.days_before;
+                document.getElementById('tmpl_enabled').checked = t.is_enabled == 1;
+                document.getElementById('notif-template-editor').style.display = 'block';
+            }
+        });
+    };
+
+    document.getElementById('workedia-notif-template-form')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const fd = new FormData(this);
+        fd.append('action', 'workedia_save_template_ajax');
+        fd.append('nonce', '<?php echo wp_create_nonce("workedia_admin_action"); ?>');
+        fetch(ajaxurl, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(res => {
+            if (res.success) workediaShowNotification('تم حفظ القالب بنجاح');
             else alert(res.data);
         });
     });
@@ -457,7 +491,7 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                             <a href="javascript:workediaEditProfile()" class="workedia-dropdown-item"><span class="dashicons dashicons-lock"></span> تغيير كلمة المرور</a>
                         <?php endif; ?>
                         <?php if ($is_admin): ?>
-                            <a href="<?php echo add_query_arg('workedia_tab', 'global-settings'); ?>" class="workedia-dropdown-item"><span class="dashicons dashicons-admin-generic"></span> إعدادات النظام</a>
+                            <a href="<?php echo add_query_arg('workedia_tab', 'advanced-settings'); ?>" class="workedia-dropdown-item"><span class="dashicons dashicons-admin-generic"></span> إعدادات النظام</a>
                         <?php endif; ?>
                         <a href="javascript:location.reload()" class="workedia-dropdown-item"><span class="dashicons dashicons-update"></span> تحديث الصفحة</a>
                     </div>
@@ -465,8 +499,12 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                     <div id="workedia-profile-edit" style="display: none; padding: 15px;">
                         <div style="font-weight: 800; margin-bottom: 15px; font-size: 13px; border-bottom: 1px solid #eee; padding-bottom: 10px;">تعديل الملف الشخصي</div>
                         <div class="workedia-form-group" style="margin-bottom: 10px;">
-                            <label class="workedia-label" style="font-size: 11px;">الاسم المفضل:</label>
-                            <input type="text" id="workedia_edit_display_name" class="workedia-input" style="padding: 8px; font-size: 12px;" value="<?php echo esc_attr($user->display_name); ?>" <?php if ($is_member) echo 'disabled style="background:#f1f5f9; cursor:not-allowed;"'; ?>>
+                            <label class="workedia-label" style="font-size: 11px;">الاسم الأول:</label>
+                            <input type="text" id="workedia_edit_first_name" class="workedia-input" style="padding: 8px; font-size: 12px;" value="<?php echo esc_attr(get_user_meta($user->ID, 'first_name', true)); ?>" <?php if ($is_member) echo 'disabled style="background:#f1f5f9; cursor:not-allowed;"'; ?>>
+                        </div>
+                        <div class="workedia-form-group" style="margin-bottom: 10px;">
+                            <label class="workedia-label" style="font-size: 11px;">اسم العائلة:</label>
+                            <input type="text" id="workedia_edit_last_name" class="workedia-input" style="padding: 8px; font-size: 12px;" value="<?php echo esc_attr(get_user_meta($user->ID, 'last_name', true)); ?>" <?php if ($is_member) echo 'disabled style="background:#f1f5f9; cursor:not-allowed;"'; ?>>
                         </div>
                         <div class="workedia-form-group" style="margin-bottom: 10px;">
                             <label class="workedia-label" style="font-size: 11px;">البريد الإلكتروني:</label>
@@ -523,21 +561,13 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                 <?php endif; ?>
 
                 <?php if ($is_admin || $is_sys_admin || $is_administrator): ?>
-                    <li class="workedia-sidebar-item <?php echo $active_tab == 'global-settings' ? 'workedia-active' : ''; ?>">
-                        <a href="<?php echo add_query_arg('workedia_tab', 'global-settings'); ?>" class="workedia-sidebar-link"><span class="dashicons dashicons-admin-generic"></span> إعدادات النظام</a>
-                        <ul class="workedia-sidebar-dropdown" style="display: <?php echo $active_tab == 'global-settings' ? 'block' : 'none'; ?>;">
-                            <li><a href="<?php echo add_query_arg('workedia_tab', 'global-settings'); ?>&sub=init" class="<?php echo (!isset($_GET['sub']) || $_GET['sub'] == 'init') ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-admin-tools"></span> تهيئة النظام</a></li>
-                            <li><a href="<?php echo add_query_arg('workedia_tab', 'global-settings'); ?>&sub=notifications" class="<?php echo ($_GET['sub'] ?? '') == 'notifications' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-email"></span> التنبيهات والبريد</a></li>
-                            <li><a href="<?php echo add_query_arg('workedia_tab', 'global-settings'); ?>&sub=design" class="<?php echo ($_GET['sub'] ?? '') == 'design' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-art"></span> التصميم والمظهر</a></li>
-                            <li><a href="<?php echo add_query_arg('workedia_tab', 'global-settings'); ?>&sub=pages" class="<?php echo ($_GET['sub'] ?? '') == 'pages' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-admin-page"></span> تخصيص الصفحات</a></li>
-                        </ul>
-                    </li>
-                <?php endif; ?>
-
-                <?php if ($is_admin || $is_sys_admin): ?>
                     <li class="workedia-sidebar-item <?php echo $active_tab == 'advanced-settings' ? 'workedia-active' : ''; ?>">
-                        <a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'alerts']); ?>" class="workedia-sidebar-link" style="color: #c53030 !important;"><span class="dashicons dashicons-shield-alt"></span> الإعدادات المتقدمة</a>
+                        <a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'init']); ?>" class="workedia-sidebar-link" style="color: #c53030 !important;"><span class="dashicons dashicons-shield-alt"></span> الإعدادات المتقدمة</a>
                         <ul class="workedia-sidebar-dropdown" style="display: <?php echo $active_tab == 'advanced-settings' ? 'block' : 'none'; ?>;">
+                            <li><a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'init']); ?>" class="<?php echo (!isset($_GET['sub']) || $_GET['sub'] == 'init') ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-admin-tools"></span> تهيئة النظام</a></li>
+                            <li><a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'notifications']); ?>" class="<?php echo ($_GET['sub'] ?? '') == 'notifications' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-email"></span> التنبيهات والبريد</a></li>
+                            <li><a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'design']); ?>" class="<?php echo ($_GET['sub'] ?? '') == 'design' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-art"></span> التصميم والمظهر</a></li>
+                            <li><a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'pages']); ?>" class="<?php echo ($_GET['sub'] ?? '') == 'pages' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-admin-page"></span> تخصيص الصفحات</a></li>
                             <li><a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'alerts']); ?>" class="<?php echo ($_GET['sub'] ?? '') == 'alerts' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-megaphone"></span> تنبيهات النظام (System Alerts)</a></li>
                             <li><a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'backup']); ?>" class="<?php echo ($_GET['sub'] ?? '') == 'backup' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-database-export"></span> مركز النسخ الاحتياطي</a></li>
                         </ul>
@@ -590,12 +620,200 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                     break;
 
                 case 'advanced-settings':
-                    if ($is_admin || $is_sys_admin) {
-                        $sub = $_GET['sub'] ?? 'alerts';
+                    if ($is_admin || $is_sys_admin || $is_administrator) {
+                        $sub = $_GET['sub'] ?? 'init';
                         ?>
                         <div class="workedia-tabs-wrapper" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; padding-bottom: 10px;">
+                            <button class="workedia-tab-btn <?php echo $sub == 'init' ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('workedia-settings', this)">تهيئة النظام</button>
+                            <button class="workedia-tab-btn <?php echo $sub == 'notifications' ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('notification-settings', this)">التنبيهات والبريد</button>
+                            <button class="workedia-tab-btn <?php echo $sub == 'design' ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('design-settings', this)">التصميم والمظهر</button>
+                            <button class="workedia-tab-btn <?php echo $sub == 'pages' ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('page-customization', this)">تخصيص الصفحات</button>
                             <button class="workedia-tab-btn <?php echo ($sub == 'alerts') ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('system-alerts-settings', this)">تنبيهات النظام</button>
                             <button class="workedia-tab-btn <?php echo ($sub == 'backup') ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('backup-settings', this)">مركز النسخ الاحتياطي</button>
+                        </div>
+
+                        <div id="workedia-settings" class="workedia-internal-tab" style="display: <?php echo ($sub == 'init') ? 'block' : 'none'; ?>;">
+                            <form method="post">
+                                <?php wp_nonce_field('workedia_admin_action', 'workedia_admin_nonce'); ?>
+
+                                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: var(--workedia-shadow);">
+                                    <h4 style="margin-top:0; border-bottom:2px solid #f1f5f9; padding-bottom:12px; color: var(--workedia-dark-color); display: flex; align-items: center; gap: 10px;">
+                                        <span class="dashicons dashicons-groups"></span> بيانات Workedia (Union Data)
+                                    </h4>
+                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:15px;">
+                                        <div class="workedia-form-group"><label class="workedia-label">اسم Workedia كاملاً:</label><input type="text" name="workedia_name" value="<?php echo esc_attr($workedia['workedia_name']); ?>" class="workedia-input"></div>
+                                        <div class="workedia-form-group"><label class="workedia-label">اسم رئيس Workedia / المسؤول:</label><input type="text" name="workedia_officer_name" value="<?php echo esc_attr($workedia['workedia_officer_name'] ?? ''); ?>" class="workedia-input"></div>
+                                        <div class="workedia-form-group"><label class="workedia-label">رقم التواصل الموحد:</label><input type="text" name="workedia_phone" value="<?php echo esc_attr($workedia['phone']); ?>" class="workedia-input"></div>
+                                        <div class="workedia-form-group"><label class="workedia-label">البريد الإلكتروني الرسمي:</label><input type="email" name="workedia_email" value="<?php echo esc_attr($workedia['email']); ?>" class="workedia-input"></div>
+                                        <div class="workedia-form-group"><label class="workedia-label">العنوان الجغرافي للمقر الرئيسي:</label><input type="text" name="workedia_address" value="<?php echo esc_attr($workedia['address']); ?>" class="workedia-input"></div>
+                                        <div class="workedia-form-group"><label class="workedia-label">رابط خرائط جوجل (Map Link):</label><input type="url" name="workedia_map_link" value="<?php echo esc_attr($workedia['map_link'] ?? ''); ?>" class="workedia-input" placeholder="https://goo.gl/maps/..."></div>
+                                        <div class="workedia-form-group" style="grid-column: span 2;"><label class="workedia-label">تفاصيل إضافية / نبذة عن Workedia:</label><textarea name="workedia_extra_details" class="workedia-textarea" rows="3"><?php echo esc_textarea($workedia['extra_details'] ?? ''); ?></textarea></div>
+                                        <div class="workedia-form-group" style="grid-column: span 2;">
+                                            <label class="workedia-label">شعار Workedia الرسمي (Official Logo):</label>
+                                            <div style="display:flex; gap:10px;">
+                                                <input type="text" name="workedia_logo" id="workedia_logo_url" value="<?php echo esc_attr($workedia['workedia_logo']); ?>" class="workedia-input">
+                                                <button type="button" onclick="workediaOpenMediaUploader('workedia_logo_url')" class="workedia-btn" style="width:auto; font-size:12px; background:#4a5568;">اختيار الشعار</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div style="background: #f8fafc; border: 1px solid #cbd5e0; border-radius: 12px; padding: 25px; margin-bottom: 25px;">
+                                    <h4 style="margin-top:0; border-bottom:2px solid #cbd5e0; padding-bottom:12px; color: var(--workedia-dark-color); display: flex; align-items: center; gap: 10px;">
+                                        <span class="dashicons dashicons-admin-settings"></span> مسميات أقسام النظام (Section Labels)
+                                    </h4>
+                                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; margin-top:15px;">
+                                        <?php foreach($labels as $key => $val): ?>
+                                            <div class="workedia-form-group">
+                                                <label class="workedia-label" style="font-size:11px;"><?php echo str_replace('tab_', '', $key); ?>:</label>
+                                                <input type="text" name="<?php echo $key; ?>" value="<?php echo esc_attr($val); ?>" class="workedia-input" style="padding:10px; font-size:13px; border-color: #cbd5e0;">
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                </div>
+
+                                <div style="position: sticky; bottom: 0; background: rgba(255,255,255,0.9); padding: 15px 0; border-top: 1px solid #eee; z-index: 10;">
+                                    <button type="submit" name="workedia_save_settings_unified" class="workedia-btn" style="width:auto; height:50px; padding: 0 50px; font-size: 1.1em; font-weight: 800; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">حفظ كافة الإعدادات والتهيئة</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <div id="notification-settings" class="workedia-internal-tab" style="display: <?php echo ($sub == 'notifications') ? 'block' : 'none'; ?>;">
+                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px;">
+                                <h4 style="margin-top:0; border-bottom:2px solid #f1f5f9; padding-bottom:12px; color: var(--workedia-dark-color);">إدارة قوالب التنبيهات والبريد الإلكتروني</h4>
+                                <?php
+                                $notif_templates = [
+                                    'membership_renewal' => 'تذكير تجديد العضوية',
+                                    'welcome_activation' => 'رسالة الترحيب بالتفعيل',
+                                    'admin_alert' => 'تنبيه إداري عام'
+                                ];
+                                ?>
+                                <div style="display:grid; grid-template-columns: 250px 1fr; gap:30px; margin-top:20px;">
+                                    <div style="border-left:1px solid #eee; padding-left:20px;">
+                                        <?php foreach($notif_templates as $type => $label): ?>
+                                            <div onclick="workediaLoadNotifTemplate('<?php echo $type; ?>')" style="padding:12px; border-radius:8px; cursor:pointer; margin-bottom:10px; background:#f8fafc; border:1px solid #e2e8f0; font-size:13px; font-weight:600;">
+                                                <?php echo $label; ?>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    </div>
+                                    <div id="notif-template-editor" style="display:none;">
+                                        <form id="workedia-notif-template-form">
+                                            <input type="hidden" name="template_type" id="tmpl_type">
+                                            <div class="workedia-form-group">
+                                                <label class="workedia-label">عنوان الرسالة (Subject):</label>
+                                                <input type="text" name="subject" id="tmpl_subject" class="workedia-input">
+                                            </div>
+                                            <div class="workedia-form-group">
+                                                <label class="workedia-label">محتوى الرسالة (Body):</label>
+                                                <textarea name="body" id="tmpl_body" class="workedia-textarea" rows="8"></textarea>
+                                                <small style="color:#718096;">الوسوم المتاحة: {member_name}, {membership_number}, {username}, {year}</small>
+                                            </div>
+                                            <div style="display:flex; align-items:center; gap:15px;">
+                                                <div class="workedia-form-group" style="flex:1;">
+                                                    <label class="workedia-label">تنبيه قبل (يوم):</label>
+                                                    <input type="number" name="days_before" id="tmpl_days" class="workedia-input">
+                                                </div>
+                                                <div style="flex:1;">
+                                                    <label><input type="checkbox" name="is_enabled" id="tmpl_enabled"> تفعيل هذا القالب</label>
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="workedia-btn" style="margin-top:20px;">حفظ القالب</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="page-customization" class="workedia-internal-tab" style="display: <?php echo $sub == 'pages' ? 'block' : 'none'; ?>;">
+                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 25px;">
+                                <h4 style="margin-top:0; border-bottom:2px solid #f1f5f9; padding-bottom:12px; color: var(--workedia-dark-color);">إدارة صفحات النظام والوسوم (Shortcodes)</h4>
+
+                                <div class="workedia-table-container">
+                                    <table class="workedia-table">
+                                        <thead>
+                                            <tr>
+                                                <th>اسم الصفحة</th>
+                                                <th>الوسم (Shortcode)</th>
+                                                <th>الرابط</th>
+                                                <th>إجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php foreach(Workedia_DB::get_pages() as $p): ?>
+                                                <tr>
+                                                    <td><strong><?php echo esc_html($p->title); ?></strong></td>
+                                                    <td><code>[<?php echo $p->shortcode; ?>]</code></td>
+                                                    <td><a href="<?php echo home_url('/' . $p->slug); ?>" target="_blank">معاينة</a></td>
+                                                    <td>
+                                                        <button onclick='workediaEditPageSettings(<?php echo json_encode($p); ?>)' class="workedia-btn workedia-btn-outline" style="padding: 5px 10px; font-size: 11px;">تعديل التصميم</button>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <h4 style="margin: 0;">إدارة الأخبار والمقالات (Blog)</h4>
+                                    <button onclick="workediaOpenAddArticleModal()" class="workedia-btn" style="width: auto;">+ إضافة مقال جديد</button>
+                                </div>
+
+                                <div class="workedia-table-container">
+                                    <table class="workedia-table">
+                                        <thead>
+                                            <tr>
+                                                <th>عنوان المقال</th>
+                                                <th>التاريخ</th>
+                                                <th>إجراءات</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <?php
+                                            $articles = Workedia_DB::get_articles(50);
+                                            if (empty($articles)): ?>
+                                                <tr><td colspan="3" style="text-align:center; padding:20px;">لا توجد مقالات حالياً.</td></tr>
+                                            <?php else: foreach($articles as $art): ?>
+                                                <tr>
+                                                    <td><?php echo esc_html($art->title); ?></td>
+                                                    <td><?php echo date('Y-m-d', strtotime($art->created_at)); ?></td>
+                                                    <td>
+                                                        <button onclick="workediaDeleteArticle(<?php echo $art->id; ?>)" class="workedia-btn" style="background: #e53e3e; padding: 5px 10px; font-size: 11px;">حذف</button>
+                                                    </td>
+                                                </tr>
+                                            <?php endforeach; endif; ?>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="design-settings" class="workedia-internal-tab" style="display: <?php echo $sub == 'design' ? 'block' : 'none'; ?>;">
+                            <form method="post">
+                                <?php wp_nonce_field('workedia_admin_action', 'workedia_admin_nonce'); ?>
+                                <h4 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">إعدادات الألوان والمظهر الشاملة</h4>
+                                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px; margin-top:20px;">
+                                    <div class="workedia-form-group"><label class="workedia-label">الأساسي:</label><input type="color" name="primary_color" value="<?php echo esc_attr($appearance['primary_color']); ?>" class="workedia-input" style="height:40px;"></div>
+                                    <div class="workedia-form-group"><label class="workedia-label">الثانوي:</label><input type="color" name="secondary_color" value="<?php echo esc_attr($appearance['secondary_color']); ?>" class="workedia-input" style="height:40px;"></div>
+                                    <div class="workedia-form-group"><label class="workedia-label">التمييز:</label><input type="color" name="accent_color" value="<?php echo esc_attr($appearance['accent_color']); ?>" class="workedia-input" style="height:40px;"></div>
+                                    <div class="workedia-form-group"><label class="workedia-label">الهيدر:</label><input type="color" name="dark_color" value="<?php echo esc_attr($appearance['dark_color']); ?>" class="workedia-input" style="height:40px;"></div>
+
+                                    <div class="workedia-form-group"><label class="workedia-label">خلفية النظام:</label><input type="color" name="bg_color" value="<?php echo esc_attr($appearance['bg_color']); ?>" class="workedia-input" style="height:40px;"></div>
+                                    <div class="workedia-form-group"><label class="workedia-label">خلفية السايدبار:</label><input type="color" name="sidebar_bg_color" value="<?php echo esc_attr($appearance['sidebar_bg_color']); ?>" class="workedia-input" style="height:40px;"></div>
+                                    <div class="workedia-form-group"><label class="workedia-label">لون الخط:</label><input type="color" name="font_color" value="<?php echo esc_attr($appearance['font_color']); ?>" class="workedia-input" style="height:40px;"></div>
+                                    <div class="workedia-form-group"><label class="workedia-label">لون الحدود:</label><input type="color" name="border_color" value="<?php echo esc_attr($appearance['border_color']); ?>" class="workedia-input" style="height:40px;"></div>
+                                </div>
+
+                                <h4 style="margin-top:30px; border-bottom:1px solid #eee; padding-bottom:10px;">الخطوط والخطوط المطبعية (Typography)</h4>
+                                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; margin-top:20px;">
+                                    <div class="workedia-form-group"><label class="workedia-label">حجم الخط (مثال: 15px):</label><input type="text" name="font_size" value="<?php echo esc_attr($appearance['font_size']); ?>" class="workedia-input"></div>
+                                    <div class="workedia-form-group"><label class="workedia-label">وزن الخط (400, 700...):</label><input type="text" name="font_weight" value="<?php echo esc_attr($appearance['font_weight']); ?>" class="workedia-input"></div>
+                                    <div class="workedia-form-group"><label class="workedia-label">تباعد الأسطر (1.5...):</label><input type="text" name="line_spacing" value="<?php echo esc_attr($appearance['line_spacing']); ?>" class="workedia-input"></div>
+                                </div>
+
+                                <button type="submit" name="workedia_save_appearance" class="workedia-btn" style="width:auto; margin-top:20px;">حفظ كافة تعديلات التصميم</button>
+                            </form>
                         </div>
 
                         <div id="system-alerts-settings" class="workedia-internal-tab" style="display: <?php echo ($sub == 'alerts') ? 'block' : 'none'; ?>;">
@@ -706,160 +924,6 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                     }
                     break;
 
-                case 'global-settings':
-                    if ($is_admin || $is_sys_admin || $is_administrator) {
-                        $sub = $_GET['sub'] ?? 'init';
-                        ?>
-                        <div class="workedia-tabs-wrapper" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; padding-bottom: 10px;">
-                            <button class="workedia-tab-btn <?php echo $sub == 'init' ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('workedia-settings', this)">تهيئة النظام</button>
-                            <button class="workedia-tab-btn <?php echo $sub == 'notifications' ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('notification-settings', this)">التنبيهات والبريد</button>
-                            <button class="workedia-tab-btn <?php echo $sub == 'design' ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('design-settings', this)">التصميم والمظهر</button>
-                            <button class="workedia-tab-btn <?php echo $sub == 'pages' ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('page-customization', this)">تخصيص الصفحات</button>
-                        </div>
-
-                        <div id="workedia-settings" class="workedia-internal-tab" style="display: <?php echo ($sub == 'init') ? 'block' : 'none'; ?>;">
-                            <form method="post">
-                                <?php wp_nonce_field('workedia_admin_action', 'workedia_admin_nonce'); ?>
-
-                                <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 25px; box-shadow: var(--workedia-shadow);">
-                                    <h4 style="margin-top:0; border-bottom:2px solid #f1f5f9; padding-bottom:12px; color: var(--workedia-dark-color); display: flex; align-items: center; gap: 10px;">
-                                        <span class="dashicons dashicons-groups"></span> بيانات Workedia (Union Data)
-                                    </h4>
-                                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-top:15px;">
-                                        <div class="workedia-form-group"><label class="workedia-label">اسم Workedia كاملاً:</label><input type="text" name="workedia_name" value="<?php echo esc_attr($workedia['workedia_name']); ?>" class="workedia-input"></div>
-                                        <div class="workedia-form-group"><label class="workedia-label">اسم رئيس Workedia / المسؤول:</label><input type="text" name="workedia_officer_name" value="<?php echo esc_attr($workedia['workedia_officer_name'] ?? ''); ?>" class="workedia-input"></div>
-                                        <div class="workedia-form-group"><label class="workedia-label">رقم التواصل الموحد:</label><input type="text" name="workedia_phone" value="<?php echo esc_attr($workedia['phone']); ?>" class="workedia-input"></div>
-                                        <div class="workedia-form-group"><label class="workedia-label">البريد الإلكتروني الرسمي:</label><input type="email" name="workedia_email" value="<?php echo esc_attr($workedia['email']); ?>" class="workedia-input"></div>
-                                        <div class="workedia-form-group"><label class="workedia-label">العنوان الجغرافي للمقر الرئيسي:</label><input type="text" name="workedia_address" value="<?php echo esc_attr($workedia['address']); ?>" class="workedia-input"></div>
-                                        <div class="workedia-form-group"><label class="workedia-label">رابط خرائط جوجل (Map Link):</label><input type="url" name="workedia_map_link" value="<?php echo esc_attr($workedia['map_link'] ?? ''); ?>" class="workedia-input" placeholder="https://goo.gl/maps/..."></div>
-                                        <div class="workedia-form-group" style="grid-column: span 2;"><label class="workedia-label">تفاصيل إضافية / نبذة عن Workedia:</label><textarea name="workedia_extra_details" class="workedia-textarea" rows="3"><?php echo esc_textarea($workedia['extra_details'] ?? ''); ?></textarea></div>
-                                        <div class="workedia-form-group" style="grid-column: span 2;">
-                                            <label class="workedia-label">شعار Workedia الرسمي (Official Logo):</label>
-                                            <div style="display:flex; gap:10px;">
-                                                <input type="text" name="workedia_logo" id="workedia_logo_url" value="<?php echo esc_attr($workedia['workedia_logo']); ?>" class="workedia-input">
-                                                <button type="button" onclick="workediaOpenMediaUploader('workedia_logo_url')" class="workedia-btn" style="width:auto; font-size:12px; background:#4a5568;">اختيار الشعار</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div style="background: #f8fafc; border: 1px solid #cbd5e0; border-radius: 12px; padding: 25px; margin-bottom: 25px;">
-                                    <h4 style="margin-top:0; border-bottom:2px solid #cbd5e0; padding-bottom:12px; color: var(--workedia-dark-color); display: flex; align-items: center; gap: 10px;">
-                                        <span class="dashicons dashicons-admin-settings"></span> مسميات أقسام النظام (Section Labels)
-                                    </h4>
-                                    <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:15px; margin-top:15px;">
-                                        <?php foreach($labels as $key => $val): ?>
-                                            <div class="workedia-form-group">
-                                                <label class="workedia-label" style="font-size:11px;"><?php echo str_replace('tab_', '', $key); ?>:</label>
-                                                <input type="text" name="<?php echo $key; ?>" value="<?php echo esc_attr($val); ?>" class="workedia-input" style="padding:10px; font-size:13px; border-color: #cbd5e0;">
-                                            </div>
-                                        <?php endforeach; ?>
-                                    </div>
-                                </div>
-
-                                <div style="position: sticky; bottom: 0; background: rgba(255,255,255,0.9); padding: 15px 0; border-top: 1px solid #eee; z-index: 10;">
-                                    <button type="submit" name="workedia_save_settings_unified" class="workedia-btn" style="width:auto; height:50px; padding: 0 50px; font-size: 1.1em; font-weight: 800; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">حفظ كافة الإعدادات والتهيئة</button>
-                                </div>
-                            </form>
-                        </div>
-
-
-
-                        <div id="page-customization" class="workedia-internal-tab" style="display: <?php echo $sub == 'pages' ? 'block' : 'none'; ?>;">
-                            <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 25px;">
-                                <h4 style="margin-top:0; border-bottom:2px solid #f1f5f9; padding-bottom:12px; color: var(--workedia-dark-color);">إدارة صفحات النظام والوسوم (Shortcodes)</h4>
-
-                                <div class="workedia-table-container">
-                                    <table class="workedia-table">
-                                        <thead>
-                                            <tr>
-                                                <th>اسم الصفحة</th>
-                                                <th>الوسم (Shortcode)</th>
-                                                <th>الرابط</th>
-                                                <th>إجراءات</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach(Workedia_DB::get_pages() as $p): ?>
-                                                <tr>
-                                                    <td><strong><?php echo esc_html($p->title); ?></strong></td>
-                                                    <td><code>[<?php echo $p->shortcode; ?>]</code></td>
-                                                    <td><a href="<?php echo home_url('/' . $p->slug); ?>" target="_blank">معاينة</a></td>
-                                                    <td>
-                                                        <button onclick='workediaEditPageSettings(<?php echo json_encode($p); ?>)' class="workedia-btn workedia-btn-outline" style="padding: 5px 10px; font-size: 11px;">تعديل التصميم</button>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
-
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                                    <h4 style="margin: 0;">إدارة الأخبار والمقالات (Blog)</h4>
-                                    <button onclick="workediaOpenAddArticleModal()" class="workedia-btn" style="width: auto;">+ إضافة مقال جديد</button>
-                                </div>
-
-                                <div class="workedia-table-container">
-                                    <table class="workedia-table">
-                                        <thead>
-                                            <tr>
-                                                <th>عنوان المقال</th>
-                                                <th>التاريخ</th>
-                                                <th>إجراءات</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php
-                                            $articles = Workedia_DB::get_articles(50);
-                                            if (empty($articles)): ?>
-                                                <tr><td colspan="3" style="text-align:center; padding:20px;">لا توجد مقالات حالياً.</td></tr>
-                                            <?php else: foreach($articles as $art): ?>
-                                                <tr>
-                                                    <td><?php echo esc_html($art->title); ?></td>
-                                                    <td><?php echo date('Y-m-d', strtotime($art->created_at)); ?></td>
-                                                    <td>
-                                                        <button onclick="workediaDeleteArticle(<?php echo $art->id; ?>)" class="workedia-btn" style="background: #e53e3e; padding: 5px 10px; font-size: 11px;">حذف</button>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; endif; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div id="design-settings" class="workedia-internal-tab" style="display: <?php echo $sub == 'design' ? 'block' : 'none'; ?>;">
-                            <form method="post">
-                                <?php wp_nonce_field('workedia_admin_action', 'workedia_admin_nonce'); ?>
-                                <h4 style="margin-top:0; border-bottom:1px solid #eee; padding-bottom:10px;">إعدادات الألوان والمظهر الشاملة</h4>
-                                <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:15px; margin-top:20px;">
-                                    <div class="workedia-form-group"><label class="workedia-label">الأساسي:</label><input type="color" name="primary_color" value="<?php echo esc_attr($appearance['primary_color']); ?>" class="workedia-input" style="height:40px;"></div>
-                                    <div class="workedia-form-group"><label class="workedia-label">الثانوي:</label><input type="color" name="secondary_color" value="<?php echo esc_attr($appearance['secondary_color']); ?>" class="workedia-input" style="height:40px;"></div>
-                                    <div class="workedia-form-group"><label class="workedia-label">التمييز:</label><input type="color" name="accent_color" value="<?php echo esc_attr($appearance['accent_color']); ?>" class="workedia-input" style="height:40px;"></div>
-                                    <div class="workedia-form-group"><label class="workedia-label">الهيدر:</label><input type="color" name="dark_color" value="<?php echo esc_attr($appearance['dark_color']); ?>" class="workedia-input" style="height:40px;"></div>
-
-                                    <div class="workedia-form-group"><label class="workedia-label">خلفية النظام:</label><input type="color" name="bg_color" value="<?php echo esc_attr($appearance['bg_color']); ?>" class="workedia-input" style="height:40px;"></div>
-                                    <div class="workedia-form-group"><label class="workedia-label">خلفية السايدبار:</label><input type="color" name="sidebar_bg_color" value="<?php echo esc_attr($appearance['sidebar_bg_color']); ?>" class="workedia-input" style="height:40px;"></div>
-                                    <div class="workedia-form-group"><label class="workedia-label">لون الخط:</label><input type="color" name="font_color" value="<?php echo esc_attr($appearance['font_color']); ?>" class="workedia-input" style="height:40px;"></div>
-                                    <div class="workedia-form-group"><label class="workedia-label">لون الحدود:</label><input type="color" name="border_color" value="<?php echo esc_attr($appearance['border_color']); ?>" class="workedia-input" style="height:40px;"></div>
-                                </div>
-
-                                <h4 style="margin-top:30px; border-bottom:1px solid #eee; padding-bottom:10px;">الخطوط والخطوط المطبعية (Typography)</h4>
-                                <div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:20px; margin-top:20px;">
-                                    <div class="workedia-form-group"><label class="workedia-label">حجم الخط (مثال: 15px):</label><input type="text" name="font_size" value="<?php echo esc_attr($appearance['font_size']); ?>" class="workedia-input"></div>
-                                    <div class="workedia-form-group"><label class="workedia-label">وزن الخط (400, 700...):</label><input type="text" name="font_weight" value="<?php echo esc_attr($appearance['font_weight']); ?>" class="workedia-input"></div>
-                                    <div class="workedia-form-group"><label class="workedia-label">تباعد الأسطر (1.5...):</label><input type="text" name="line_spacing" value="<?php echo esc_attr($appearance['line_spacing']); ?>" class="workedia-input"></div>
-                                </div>
-
-                                <button type="submit" name="workedia_save_appearance" class="workedia-btn" style="width:auto; margin-top:20px;">حفظ كافة تعديلات التصميم</button>
-                            </form>
-                        </div>
-
-                        <?php
-                    }
-                    break;
 
             }
             ?>

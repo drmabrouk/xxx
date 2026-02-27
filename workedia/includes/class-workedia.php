@@ -53,6 +53,7 @@ class Workedia {
         $this->loader->add_action('wp_ajax_workedia_get_ticket_details', $plugin_public, 'ajax_get_ticket_details');
         $this->loader->add_action('wp_ajax_workedia_add_ticket_reply', $plugin_public, 'ajax_add_ticket_reply');
         $this->loader->add_action('wp_ajax_workedia_close_ticket', $plugin_public, 'ajax_close_ticket');
+        $this->loader->add_action('wp_ajax_workedia_update_profile_ajax', $plugin_public, 'ajax_update_profile');
         $this->loader->add_action('wp_ajax_workedia_print', $plugin_public, 'handle_print');
         $this->loader->add_action('wp_ajax_workedia_add_member_ajax', $plugin_public, 'ajax_add_member');
         $this->loader->add_action('wp_ajax_workedia_update_member_ajax', $plugin_public, 'ajax_update_member');
@@ -67,8 +68,6 @@ class Workedia {
         $this->loader->add_action('wp_ajax_workedia_submit_survey_response', $plugin_public, 'ajax_submit_survey_response');
         $this->loader->add_action('wp_ajax_workedia_get_survey_results', $plugin_public, 'ajax_get_survey_results');
         $this->loader->add_action('wp_ajax_workedia_export_survey_results', $plugin_public, 'ajax_export_survey_results');
-        $this->loader->add_action('wp_ajax_workedia_delete_gov_data_ajax', $plugin_public, 'ajax_delete_gov_data');
-        $this->loader->add_action('wp_ajax_workedia_merge_gov_data_ajax', $plugin_public, 'ajax_merge_gov_data');
         $this->loader->add_action('wp_ajax_workedia_reset_system_ajax', $plugin_public, 'ajax_reset_system');
         $this->loader->add_action('wp_ajax_workedia_rollback_log_ajax', $plugin_public, 'ajax_rollback_log');
         $this->loader->add_action('wp_ajax_workedia_delete_log', $plugin_public, 'ajax_delete_log');
@@ -83,13 +82,12 @@ class Workedia {
         $this->loader->add_action('wp_ajax_workedia_delete_service', $plugin_public, 'ajax_delete_service');
         $this->loader->add_action('wp_ajax_workedia_submit_service_request', $plugin_public, 'ajax_submit_service_request');
         $this->loader->add_action('wp_ajax_workedia_process_service_request', $plugin_public, 'ajax_process_service_request');
-        $this->loader->add_action('wp_ajax_workedia_submit_update_request_ajax', $plugin_public, 'ajax_submit_update_request_ajax');
-        $this->loader->add_action('wp_ajax_workedia_process_update_request_ajax', $plugin_public, 'ajax_process_update_request_ajax');
         $this->loader->add_action('wp_ajax_nopriv_workedia_forgot_password_otp', $plugin_public, 'ajax_forgot_password_otp');
         $this->loader->add_action('wp_ajax_nopriv_workedia_reset_password_otp', $plugin_public, 'ajax_reset_password_otp');
         $this->loader->add_action('wp_ajax_nopriv_workedia_activate_account_step1', $plugin_public, 'ajax_activate_account_step1');
         $this->loader->add_action('wp_ajax_nopriv_workedia_activate_account_final', $plugin_public, 'ajax_activate_account_final');
         $this->loader->add_action('wp_ajax_workedia_get_template_ajax', $plugin_public, 'ajax_get_template_ajax');
+        $this->loader->add_action('wp_ajax_workedia_save_template_ajax', $plugin_public, 'ajax_save_template_ajax');
         $this->loader->add_action('wp_ajax_workedia_save_page_settings', $plugin_public, 'ajax_save_page_settings');
         $this->loader->add_action('wp_ajax_workedia_add_article', $plugin_public, 'ajax_add_article');
         $this->loader->add_action('wp_ajax_workedia_delete_article', $plugin_public, 'ajax_delete_article');

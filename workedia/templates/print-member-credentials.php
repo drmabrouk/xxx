@@ -49,7 +49,7 @@ $workedia = Workedia_Settings::get_workedia_info();
             ?>
                 <tr>
                     <td><?php echo $count++; ?></td>
-                    <td style="font-weight: 700;"><?php echo esc_html($s->name); ?></td>
+                    <td style="font-weight: 700;"><?php echo esc_html($s->first_name . ' ' . $s->last_name); ?></td>
                     <td class="code"><?php echo esc_html($s->username); ?></td>
                     <td class="code"><?php echo esc_html($pass); ?></td>
                 </tr>
