@@ -84,8 +84,6 @@ class Workedia {
         $this->loader->add_action('wp_ajax_workedia_process_service_request', $plugin_public, 'ajax_process_service_request');
         $this->loader->add_action('wp_ajax_nopriv_workedia_forgot_password_otp', $plugin_public, 'ajax_forgot_password_otp');
         $this->loader->add_action('wp_ajax_nopriv_workedia_reset_password_otp', $plugin_public, 'ajax_reset_password_otp');
-        $this->loader->add_action('wp_ajax_nopriv_workedia_activate_account_step1', $plugin_public, 'ajax_activate_account_step1');
-        $this->loader->add_action('wp_ajax_nopriv_workedia_activate_account_final', $plugin_public, 'ajax_activate_account_final');
         $this->loader->add_action('wp_ajax_workedia_get_template_ajax', $plugin_public, 'ajax_get_template_ajax');
         $this->loader->add_action('wp_ajax_workedia_save_template_ajax', $plugin_public, 'ajax_save_template_ajax');
         $this->loader->add_action('wp_ajax_workedia_save_page_settings', $plugin_public, 'ajax_save_page_settings');
