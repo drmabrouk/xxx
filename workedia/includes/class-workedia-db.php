@@ -1,5 +1,6 @@
 <?php
 
+if ( ! class_exists( 'Workedia_DB' ) ) {
 class Workedia_DB {
 
     public static function get_staff($args = array()) {
@@ -380,12 +381,6 @@ class Workedia_DB {
 
     public static function get_member_stats($member_id) {
         return array();
-    }
-
-    public static function get_next_sort_order() {
-        global $wpdb;
-        $max = $wpdb->get_var("SELECT MAX(sort_order) FROM {$wpdb->prefix}workedia_members");
-        return ($max ? intval($max) : 0) + 1;
     }
 
     public static function delete_all_data() {
@@ -805,4 +800,5 @@ class Workedia_DB {
             'created_at' => current_time('mysql')
         ]);
     }
+}
 }
