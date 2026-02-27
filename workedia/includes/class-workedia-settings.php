@@ -29,7 +29,6 @@ class Workedia_Settings {
             'tab_users_management' => 'إدارة مستخدمي النظام',
             'tab_surveys' => 'استطلاعات الرأي',
             'tab_global_settings' => 'إعدادات النظام',
-            'tab_update_requests' => 'طلبات التحديث',
             'tab_my_profile' => 'ملفي الشخصي'
         );
         return wp_parse_args(get_option('workedia_labels', array()), $default);
@@ -113,69 +112,5 @@ class Workedia_Settings {
         );
     }
 
-    public static function get_governorates() {
-        return array(
-            'cairo' => 'القاهرة',
-            'giza' => 'الجيزة',
-            'alexandria' => 'الإسكندرية',
-            'monufia' => 'المنوفية',
-            'dakahlia' => 'الدقهلية',
-            'sharqia' => 'الشرقية',
-            'beheira' => 'البحيرة',
-            'qalyubia' => 'القليوبية',
-            'gharbia' => 'الغربية',
-            'fayoum' => 'الفيوم',
-            'minya' => 'المنيا',
-            'asyut' => 'أسيوط',
-            'sohag' => 'سوهاج',
-            'qena' => 'قنا',
-            'luxor' => 'الأقصر',
-            'aswan' => 'أسوان',
-            'damietta' => 'دمياط',
-            'port_said' => 'بورسعيد',
-            'ismailia' => 'الإسماعيلية',
-            'suez' => 'السويس',
-            'kafr_el_sheikh' => 'كفر الشيخ',
-            'matrouh' => 'مطروح',
-            'red_sea' => 'البحر الأحمر',
-            'new_valley' => 'الوادي الجديد',
-            'north_sinai' => 'شمال سيناء',
-            'south_sinai' => 'جنوب سيناء',
-            'beni_suef' => 'بني سويف'
-        );
-    }
-
-    public static function get_governorate_prefix($gov_key) {
-        $prefixes = array(
-            'cairo' => 'CAI',
-            'giza' => 'GIZ',
-            'alexandria' => 'ALX',
-            'monufia' => 'MNF',
-            'dakahlia' => 'DKH',
-            'sharqia' => 'SHR',
-            'beheira' => 'BEH',
-            'qalyubia' => 'QAL',
-            'gharbia' => 'GHA',
-            'fayoum' => 'FAY',
-            'minya' => 'MIN',
-            'asyut' => 'ASY',
-            'sohag' => 'SOH',
-            'qena' => 'QEN',
-            'luxor' => 'LXR',
-            'aswan' => 'ASW',
-            'damietta' => 'DAM',
-            'port_said' => 'PSD',
-            'ismailia' => 'ISM',
-            'suez' => 'SUE',
-            'kafr_el_sheikh' => 'KFS',
-            'matrouh' => 'MAT',
-            'red_sea' => 'RED',
-            'new_valley' => 'NVAL',
-            'north_sinai' => 'NSIN',
-            'south_sinai' => 'SSIN',
-            'beni_suef' => 'BSF'
-        );
-        return $prefixes[$gov_key] ?? 'GEN';
-    }
 
 }

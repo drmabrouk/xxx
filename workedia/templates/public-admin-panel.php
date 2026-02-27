@@ -78,47 +78,6 @@
     };
 
     // MEDIA UPLOADER FOR LOGO
-    window.workediaDeleteGovData = function() {
-        const gov = document.getElementById('workedia_gov_action_target').value;
-        if (!gov) return alert('يرجى اختيار المحافظة أولاً');
-        if (!confirm('هل أنت متأكد من حذف كافة بيانات محافظة ' + gov + '؟ لا يمكن التراجع عن هذا الإجراء.')) return;
-
-        const fd = new FormData();
-        fd.append('action', 'workedia_delete_gov_data_ajax');
-        fd.append('governorate', gov);
-        fd.append('nonce', '<?php echo wp_create_nonce("workedia_admin_action"); ?>');
-
-        fetch('<?php echo admin_url('admin-ajax.php'); ?>?_=' + Date.now(), { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(res => {
-            if (res.success) {
-                alert('تم حذف بيانات المحافظة بنجاح.');
-                location.reload();
-            } else alert('خطأ: ' + res.data);
-        });
-    };
-
-    window.workediaMergeGovData = function(input) {
-        const gov = document.getElementById('workedia_gov_action_target').value;
-        if (!gov) return alert('يرجى اختيار المحافظة أولاً لدمج البيانات إليها');
-        if (!input.files.length) return;
-
-        const fd = new FormData();
-        fd.append('action', 'workedia_merge_gov_data_ajax');
-        fd.append('governorate', gov);
-        fd.append('backup_file', input.files[0]);
-        fd.append('nonce', '<?php echo wp_create_nonce("workedia_admin_action"); ?>');
-
-        fetch('<?php echo admin_url('admin-ajax.php'); ?>', { method: 'POST', body: fd })
-        .then(r => r.json())
-        .then(res => {
-            if (res.success) {
-                alert('تم دمج البيانات بنجاح. التفاصيل: ' + res.data);
-                location.reload();
-            } else alert('خطأ: ' + res.data);
-        });
-    };
-
     window.workediaResetSystem = function() {
         const password = prompt('تحذير نهائي: سيتم مسح كافة بيانات النظام بالكامل. يرجى إدخال كلمة مرور مدير النظام للتأكيد:');
         if (!password) return;
@@ -411,14 +370,6 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                         else echo 'مستخدم النظام';
                         ?>
                     </div>
-                    <?php
-                    $my_gov_key = get_user_meta($user->ID, 'workedia_governorate', true);
-                    $govs = Workedia_Settings::get_governorates();
-                    $my_gov_label = $govs[$my_gov_key] ?? '';
-                    if ($my_gov_label): ?>
-                        <div style="width: 100%; height: 1px; background: #cbd5e0; margin: 3px 0;"></div>
-                        <div style="color: var(--workedia-primary-color); font-size: 10px;"><?php echo esc_html($my_gov_label); ?></div>
-                    <?php endif; ?>
                 </div>
             </div>
         </div>
@@ -451,12 +402,6 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                                 if ($member_by_wp->last_paid_membership_year < date('Y')) {
                                     $notif_alerts[] = ['text' => 'يوجد متأخرات في تجديد العضوية السنوية', 'type' => 'warning'];
                                 }
-                            }
-                        }
-                        if (current_user_can('manage_options')) {
-                            $pending_updates = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}workedia_update_requests WHERE status = 'pending'");
-                            if ($pending_updates > 0) {
-                                $notif_alerts[] = ['text' => 'يوجد ' . $pending_updates . ' طلبات تحديث بيانات بانتظار المراجعة', 'type' => 'info'];
                             }
                         }
 
@@ -563,12 +508,8 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                 <?php endif; ?>
 
                 <?php if (!$is_restricted && ($is_admin || $is_sys_admin || $is_administrator)): ?>
-                    <li class="workedia-sidebar-item <?php echo in_array($active_tab, ['users-management', 'update-requests']) ? 'workedia-active' : ''; ?>">
+                    <li class="workedia-sidebar-item <?php echo $active_tab == 'users-management' ? 'workedia-active' : ''; ?>">
                         <a href="<?php echo add_query_arg('workedia_tab', 'users-management'); ?>" class="workedia-sidebar-link"><span class="dashicons dashicons-admin-users"></span> <?php echo $labels['tab_users_management']; ?></a>
-                        <ul class="workedia-sidebar-dropdown" style="display: <?php echo in_array($active_tab, ['users-management', 'update-requests']) ? 'block' : 'none'; ?>;">
-                            <li><a href="<?php echo add_query_arg('workedia_tab', 'users-management'); ?>" class="<?php echo $active_tab == 'users-management' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-list-view"></span> قائمة المستخدمين</a></li>
-                            <li><a href="<?php echo add_query_arg('workedia_tab', 'update-requests'); ?>" class="<?php echo $active_tab == 'update-requests' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-edit"></span> طلبات التحديث</a></li>
-                        </ul>
                     </li>
                 <?php endif; ?>
 
@@ -599,7 +540,6 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                         <ul class="workedia-sidebar-dropdown" style="display: <?php echo $active_tab == 'advanced-settings' ? 'block' : 'none'; ?>;">
                             <li><a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'alerts']); ?>" class="<?php echo ($_GET['sub'] ?? '') == 'alerts' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-megaphone"></span> تنبيهات النظام (System Alerts)</a></li>
                             <li><a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'backup']); ?>" class="<?php echo ($_GET['sub'] ?? '') == 'backup' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-database-export"></span> مركز النسخ الاحتياطي</a></li>
-                            <li><a href="<?php echo add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'logs']); ?>" class="<?php echo ($_GET['sub'] ?? '') == 'logs' ? 'workedia-sub-active' : ''; ?>"><span class="dashicons dashicons-list-view"></span> سجل النشاطات (Activity Log)</a></li>
                         </ul>
                     </li>
                 <?php endif; ?>
@@ -656,7 +596,6 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                         <div class="workedia-tabs-wrapper" style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid #eee; overflow-x: auto; white-space: nowrap; padding-bottom: 10px;">
                             <button class="workedia-tab-btn <?php echo ($sub == 'alerts') ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('system-alerts-settings', this)">تنبيهات النظام</button>
                             <button class="workedia-tab-btn <?php echo ($sub == 'backup') ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('backup-settings', this)">مركز النسخ الاحتياطي</button>
-                            <button class="workedia-tab-btn <?php echo ($sub == 'logs') ? 'workedia-active' : ''; ?>" onclick="workediaOpenInternalTab('activity-logs', this)">سجل النشاطات</button>
                         </div>
 
                         <div id="system-alerts-settings" class="workedia-internal-tab" style="display: <?php echo ($sub == 'alerts') ? 'block' : 'none'; ?>;">
@@ -753,21 +692,6 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                                         </form>
                                     </div>
 
-                                    <div style="background:white; padding:20px; border-radius:8px; border:1px solid #eee;">
-                                        <h5 style="margin-top:0;">إدارة بيانات محافظة محددة</h5>
-                                        <p style="font-size:12px; color:#666; margin-bottom:15px;">حذف أو دمج بيانات محافظة واحدة فقط دون المساس ببقية المحافظات.</p>
-                                        <div style="display:flex; flex-direction:column; gap:10px;">
-                                            <select id="workedia_gov_action_target" class="workedia-select" style="font-size:12px;">
-                                                <option value="">-- اختر المحافظة --</option>
-                                                <?php foreach(Workedia_Settings::get_governorates() as $k => $v) echo "<option value='$k'>$v</option>"; ?>
-                                            </select>
-                                            <div style="display:flex; gap:8px;">
-                                                <button onclick="workediaDeleteGovData()" class="workedia-btn" style="background:#e53e3e; width:auto; font-size:11px;">حذف بيانات المحافظة</button>
-                                                <button onclick="document.getElementById('workedia_gov_merge_file').click()" class="workedia-btn" style="background:#805ad5; width:auto; font-size:11px;">دمج بيانات (JSON)</button>
-                                                <input type="file" id="workedia_gov_merge_file" style="display:none;" onchange="workediaMergeGovData(this)">
-                                            </div>
-                                        </div>
-                                    </div>
 
                                     <div style="background:#fff5f5; padding:20px; border-radius:8px; border:1px solid #feb2b2; grid-column: 1 / -1;">
                                         <h5 style="margin-top:0; color:#c53030;">منطقة الخطر: إعادة تهيئة النظام</h5>
@@ -778,91 +702,7 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                             </div>
                         </div>
 
-                        <div id="activity-logs" class="workedia-internal-tab" style="display: <?php echo ($sub == 'logs') ? 'block' : 'none'; ?>;">
-                            <div style="background:#fff; border:1px solid #e2e8f0; border-radius:12px; padding:15px;">
-                                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
-                                    <div>
-                                        <h4 style="margin:0; font-size:16px;">سجل نشاطات النظام الشامل</h4>
-                                        <div style="font-size:11px; color:#718096;">آخر 200 نشاط مسجل في النظام.</div>
-                                    </div>
-                                    <div style="display:flex; gap:10px;">
-                                        <form method="get" style="display:flex; gap:5px;">
-                                            <input type="hidden" name="workedia_tab" value="advanced-settings">
-                                            <input type="hidden" name="sub" value="logs">
-                                            <input type="text" name="log_search" value="<?php echo esc_attr($_GET['log_search'] ?? ''); ?>" placeholder="بحث في السجلات..." class="workedia-input" style="width:200px; padding:5px 10px; font-size:12px;">
-                                            <button type="submit" class="workedia-btn" style="width:auto; padding:5px 15px; font-size:12px;">بحث</button>
-                                        </form>
-                                        <button onclick="workediaDeleteAllLogs()" class="workedia-btn" style="background:#e53e3e; width:auto; font-size:12px; padding:5px 15px;">تفريغ السجل</button>
-                                    </div>
-                                </div>
-                                <div class="workedia-table-container" style="margin:0; overflow-x:auto;">
-                                    <table class="workedia-table" style="font-size:12px; width:100%;">
-                                        <thead>
-                                            <tr style="background:#f8fafc;">
-                                                <th style="padding:8px; width:140px;">الوقت</th>
-                                                <th style="padding:8px; width:120px;">المستخدم</th>
-                                                <th style="padding:8px; width:120px;">الإجراء</th>
-                                                <th style="padding:8px;">التفاصيل</th>
-                                                <th style="padding:8px; width:100px;">إجراءات</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php
-                                            $limit = 25;
-                                            $page_num = isset($_GET['log_page']) ? max(1, intval($_GET['log_page'])) : 1;
-                                            $offset = ($page_num - 1) * $limit;
-                                            $search = sanitize_text_field($_GET['log_search'] ?? '');
-                                            $all_logs = Workedia_Logger::get_logs($limit, $offset, $search);
-                                            $total_logs = Workedia_Logger::get_total_logs($search);
-                                            $total_pages = ceil($total_logs / $limit);
-
-                                            if (empty($all_logs)): ?>
-                                                <tr><td colspan="5" style="text-align:center; padding:20px; color:#94a3b8;">لا توجد سجلات تطابق البحث</td></tr>
-                                            <?php endif;
-
-                                            foreach ($all_logs as $log):
-                                                $can_rollback = strpos($log->details, 'ROLLBACK_DATA:') === 0;
-                                                $details_display = $can_rollback ? 'عملية تتضمن بيانات للاستعادة' : esc_html($log->details);
-                                            ?>
-                                                <tr style="border-bottom: 1px solid #f1f5f9;">
-                                                    <td style="padding:6px 8px; color: #718096;"><?php echo esc_html($log->created_at); ?></td>
-                                                    <td style="padding:6px 8px; font-weight: 600;"><?php echo esc_html($log->display_name ?: 'نظام'); ?></td>
-                                                    <td style="padding:6px 8px;"><span style="background:<?php echo $appearance['primary_color']; ?>15; color:<?php echo $appearance['primary_color']; ?>; padding:2px 6px; border-radius:4px; font-weight:700;"><?php echo esc_html($log->action); ?></span></td>
-                                                    <td style="padding:6px 8px; color:#4a5568; line-height:1.4;"><?php echo mb_strimwidth($details_display, 0, 100, "..."); ?></td>
-                                                    <td style="padding:6px 8px;">
-                                                        <div style="display:flex; gap:5px;">
-                                                            <button onclick='workediaViewLogDetails(<?php echo json_encode($log); ?>)' class="workedia-btn workedia-btn-outline" style="padding:2px 8px; font-size:10px;">التفاصيل</button>
-                                                            <?php if ($can_rollback): ?>
-                                                                <button onclick="workediaRollbackLog(<?php echo $log->id; ?>)" class="workedia-btn" style="padding:2px 8px; font-size:10px; background:#38a169;">استعادة</button>
-                                                            <?php endif; ?>
-                                                            <button onclick="workediaDeleteLog(<?php echo $log->id; ?>)" class="workedia-btn" style="padding:2px 8px; font-size:10px; background:#e53e3e;">حذف</button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <?php if ($total_pages > 1): ?>
-                                    <div style="display:flex; justify-content:center; gap:10px; margin-top:20px;">
-                                        <?php if ($page_num > 1): ?>
-                                            <a href="<?php echo add_query_arg('log_page', $page_num - 1); ?>" class="workedia-btn workedia-btn-outline" style="width:auto; padding:5px 15px; text-decoration:none;">السابق</a>
-                                        <?php endif; ?>
-                                        <span style="align-self:center; font-size:13px;">صفحة <?php echo $page_num; ?> من <?php echo $total_pages; ?></span>
-                                        <?php if ($page_num < $total_pages): ?>
-                                            <a href="<?php echo add_query_arg('log_page', $page_num + 1); ?>" class="workedia-btn workedia-btn-outline" style="width:auto; padding:5px 15px; text-decoration:none;">التالي</a>
-                                        <?php endif; ?>
-                                    </div>
-                                <?php endif; ?>
-                            </div>
-                        </div>
                         <?php
-                    }
-                    break;
-
-                case 'update-requests':
-                    if ($is_admin || $is_sys_admin || $is_administrator) {
-                        include WORKEDIA_PLUGIN_DIR . 'templates/admin-update-requests.php';
                     }
                     break;
 

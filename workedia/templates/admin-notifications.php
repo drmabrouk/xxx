@@ -91,7 +91,7 @@ $templates = [
                         <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 5px;">
                             <span style="font-size: 11px; color: #666;">الرموز المتاحة: </span>
                             <code style="font-size: 10px; background: #eee; padding: 2px 5px; border-radius: 3px;">{member_name}</code>
-                            <code style="font-size: 10px; background: #eee; padding: 2px 5px; border-radius: 3px;">{national_id}</code>
+                            <code style="font-size: 10px; background: #eee; padding: 2px 5px; border-radius: 3px;">{username}</code>
                             <code style="font-size: 10px; background: #eee; padding: 2px 5px; border-radius: 3px;">{membership_number}</code>
                         </div>
                     </div>

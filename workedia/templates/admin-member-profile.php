@@ -21,16 +21,6 @@ if ($is_subscriber && !current_user_can('manage_options')) {
     }
 }
 
-// GEOGRAPHIC ACCESS CHECK
-if ($is_administrator) {
-    $my_gov = get_user_meta($user->ID, 'workedia_governorate', true);
-    if ($my_gov && $member->governorate !== $my_gov) {
-        echo '<div class="error" style="padding:20px; background:#fff5f5; color:#c53030; border-radius:8px; border:1px solid #feb2b2;"><h4>⚠️ عذراً، لا تملك صلاحية الوصول لهذا الملف.</h4><p>هذا العضو يتبع لمحافظة أخرى غير المسجلة في حسابك.</p></div>';
-        return;
-    }
-}
-
-$govs = Workedia_Settings::get_governorates();
 $statuses = Workedia_Settings::get_membership_statuses();
 ?>
 
@@ -52,15 +42,10 @@ $statuses = Workedia_Settings::get_membership_statuses();
             </div>
             <div>
                 <h2 style="margin:0; color: var(--workedia-dark-color);"><?php echo esc_html($member->name); ?></h2>
-                <div style="display: flex; gap: 10px; margin-top: 5px;">
-                    <span class="workedia-badge" style="background: #e2e8f0; color: #4a5568;"><?php echo $govs[$member->governorate] ?? $member->governorate; ?></span>
-                </div>
             </div>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-            <?php if ($is_subscriber): ?>
-                <button onclick="workediaOpenUpdateMemberRequestModal()" class="workedia-btn" style="background: #3182ce; width: auto;"><span class="dashicons dashicons-edit"></span> طلب تحديث بياناتي</button>
-            <?php elseif (!$is_member): ?>
+            <?php if (!$is_member): ?>
                 <button onclick="workediaEditMember(JSON.parse(this.dataset.member))" data-member='<?php echo esc_attr(wp_json_encode($member)); ?>' class="workedia-btn" style="background: #3182ce; width: auto;"><span class="dashicons dashicons-edit"></span> تعديل البيانات</button>
             <?php endif; ?>
 
@@ -86,7 +71,7 @@ $statuses = Workedia_Settings::get_membership_statuses();
                 <div style="background: #fff; padding: 25px; border-radius: 12px; border: 1px solid var(--workedia-border-color); box-shadow: var(--workedia-shadow);">
                 <h3 style="margin-top:0; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 20px;">البيانات الأساسية</h3>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                    <div><label class="workedia-label">الرقم القومي:</label> <div class="workedia-value"><?php echo esc_html($member->national_id); ?></div></div>
+                    <div><label class="workedia-label">اسم المستخدم:</label> <div class="workedia-value"><?php echo esc_html($member->username); ?></div></div>
                     <div><label class="workedia-label">كود العضوية:</label> <div class="workedia-value"><?php echo esc_html($member->membership_number); ?></div></div>
                     <div><label class="workedia-label">رقم الهاتف:</label> <div class="workedia-value"><?php echo esc_html($member->phone); ?></div></div>
                     <div><label class="workedia-label">البريد الإلكتروني:</label> <div class="workedia-value"><?php echo esc_html($member->email); ?></div></div>
@@ -95,10 +80,8 @@ $statuses = Workedia_Settings::get_membership_statuses();
 
                 <h4 style="margin: 20px 0 10px 0; color: var(--workedia-primary-color);">بيانات السكن والاتصال</h4>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-                    <div><label class="workedia-label">محافظة السكن:</label> <div class="workedia-value"><?php echo esc_html($govs[$member->residence_governorate] ?? $member->residence_governorate); ?></div></div>
                     <div><label class="workedia-label">المدينة / المركز:</label> <div class="workedia-value"><?php echo esc_html($member->residence_city); ?></div></div>
                     <div style="grid-column: span 2;"><label class="workedia-label">العنوان (الشارع / القرية):</label> <div class="workedia-value"><?php echo esc_html($member->residence_street); ?></div></div>
-                    <div><label class="workedia-label">محافظة الفرع (Workedia):</label> <div class="workedia-value"><?php echo esc_html($govs[$member->governorate] ?? $member->governorate); ?></div></div>
                     <?php if ($member->wp_user_id): ?>
                         <?php $temp_pass = get_user_meta($member->wp_user_id, 'workedia_temp_pass', true); if ($temp_pass): ?>
                             <div style="grid-column: span 2; background: #fffaf0; padding: 15px; border-radius: 8px; border: 1px solid #feebc8; margin-top: 10px;">
@@ -133,11 +116,9 @@ $statuses = Workedia_Settings::get_membership_statuses();
                 <input type="hidden" name="member_id" id="edit_member_id_hidden">
                 <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; padding:20px;">
                     <div class="workedia-form-group"><label class="workedia-label">الاسم الكامل:</label><input name="name" id="edit_name" type="text" class="workedia-input" required></div>
-                    <div class="workedia-form-group"><label class="workedia-label">الرقم القومي:</label><input name="national_id" id="edit_national_id" type="text" class="workedia-input" required maxlength="14"></div>
+                    <div class="workedia-form-group"><label class="workedia-label">اسم المستخدم:</label><input name="username" id="edit_username" type="text" class="workedia-input" required></div>
 
-                    <div class="workedia-form-group"><label class="workedia-label">محافظة السكن:</label><select name="residence_governorate" id="edit_res_gov" class="workedia-select"><?php foreach (Workedia_Settings::get_governorates() as $k => $v) echo "<option value='$k'>$v</option>"; ?></select></div>
                     <div class="workedia-form-group"><label class="workedia-label">المدينة / المركز:</label><input name="residence_city" id="edit_res_city" type="text" class="workedia-input"></div>
-                    <div class="workedia-form-group"><label class="workedia-label">محافظة الفرع:</label><select name="governorate" id="edit_gov" class="workedia-select"><?php foreach (Workedia_Settings::get_governorates() as $k => $v) echo "<option value='$k'>$v</option>"; ?></select></div>
 
                     <div class="workedia-form-group" style="grid-column: span 3;"><label class="workedia-label">العنوان (الشارع / القرية):</label><input name="residence_street" id="edit_res_street" type="text" class="workedia-input"></div>
 
@@ -150,37 +131,6 @@ $statuses = Workedia_Settings::get_membership_statuses();
         </div>
     </div>
 
-    <!-- Member Update Request Modal -->
-    <div id="member-update-request-modal" class="workedia-modal-overlay">
-        <div class="workedia-modal-content" style="max-width: 800px;">
-            <div class="workedia-modal-header">
-                <h3>طلب تحديث بيانات العضوية</h3>
-                <button class="workedia-modal-close" onclick="document.getElementById('member-update-request-modal').style.display='none'">&times;</button>
-            </div>
-            <div style="padding: 20px; background: #fffaf0; border-bottom: 1px solid #feebc8; font-size: 13px; color: #744210;">
-                <span class="dashicons dashicons-info" style="font-size: 16px;"></span> سيتم إرسال طلبك للمراجعة من قبل Workedia قبل اعتماده رسمياً في النظام.
-            </div>
-            <form id="member-update-request-form">
-                <input type="hidden" name="member_id" value="<?php echo $member->id; ?>">
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 25px;">
-                    <div class="workedia-form-group"><label class="workedia-label">الاسم الكامل:</label><input type="text" name="name" class="workedia-input" value="<?php echo esc_attr($member->name); ?>" required></div>
-                    <div class="workedia-form-group"><label class="workedia-label">الرقم القومي:</label><input type="text" name="national_id" class="workedia-input" value="<?php echo esc_attr($member->national_id); ?>" required maxlength="14"></div>
-
-                    <div class="workedia-form-group"><label class="workedia-label">محافظة السكن:</label><select name="residence_governorate" class="workedia-select"><?php foreach ($govs as $k => $v) echo "<option value='$k' ".selected($member->residence_governorate, $k, false).">$v</option>"; ?></select></div>
-                    <div class="workedia-form-group"><label class="workedia-label">المدينة / المركز:</label><input name="residence_city" type="text" class="workedia-input" value="<?php echo esc_attr($member->residence_city); ?>"></div>
-                    <div class="workedia-form-group" style="grid-column: span 2;"><label class="workedia-label">العنوان (الشارع / القرية):</label><input name="residence_street" type="text" class="workedia-input" value="<?php echo esc_attr($member->residence_street); ?>"></div>
-
-                    <div class="workedia-form-group"><label class="workedia-label">محافظة الفرع:</label><select name="governorate" class="workedia-select"><?php foreach ($govs as $k => $v) echo "<option value='$k' ".selected($member->governorate, $k, false).">$v</option>"; ?></select></div>
-                    <div class="workedia-form-group"><label class="workedia-label">رقم الهاتف:</label><input type="text" name="phone" class="workedia-input" value="<?php echo esc_attr($member->phone); ?>"></div>
-                    <div class="workedia-form-group"><label class="workedia-label">البريد الإلكتروني:</label><input type="email" name="email" class="workedia-input" value="<?php echo esc_attr($member->email); ?>"></div>
-                    <div class="workedia-form-group" style="grid-column: span 2;"><label class="workedia-label">سبب التحديث / ملاحظات إضافية:</label><textarea name="notes" class="workedia-input" rows="2"></textarea></div>
-                </div>
-                <div style="padding: 0 25px 25px;">
-                    <button type="submit" class="workedia-btn" style="width: 100%; height: 45px; font-weight: 700;">إرسال طلب التحديث للمراجعة</button>
-                </div>
-            </form>
-        </div>
-    </div>
 </div>
 
 <script>
@@ -210,28 +160,6 @@ function workediaUploadMemberPhoto(memberId) {
     });
 }
 
-function workediaOpenUpdateMemberRequestModal() {
-    document.getElementById('member-update-request-modal').style.display = 'flex';
-}
-
-document.getElementById('member-update-request-form').onsubmit = function(e) {
-    e.preventDefault();
-    const formData = new FormData(this);
-    formData.append('action', 'workedia_submit_update_request_ajax');
-    formData.append('nonce', '<?php echo wp_create_nonce("workedia_update_request"); ?>');
-
-    fetch('<?php echo admin_url('admin-ajax.php'); ?>', { method: 'POST', body: formData })
-    .then(r => r.json())
-    .then(res => {
-        if (res.success) {
-            workediaShowNotification('تم إرسال طلب التحديث بنجاح. سنقوم بمراجعته قريباً.');
-            document.getElementById('member-update-request-modal').style.display = 'none';
-        } else {
-            alert('خطأ: ' + res.data);
-        }
-    });
-};
-
 function deleteMember(id, name) {
     if (!confirm('هل أنت متأكد من حذف العضو: ' + name + ' نهائياً من النظام؟ لا يمكن التراجع عن هذا الإجراء.')) return;
     const formData = new FormData();
@@ -253,11 +181,9 @@ function deleteMember(id, name) {
 window.workediaEditMember = function(s) {
     document.getElementById('edit_member_id_hidden').value = s.id;
     document.getElementById('edit_name').value = s.name;
-    document.getElementById('edit_national_id').value = s.national_id;
-    document.getElementById('edit_res_gov').value = s.residence_governorate || '';
+    document.getElementById('edit_username').value = s.username;
     document.getElementById('edit_res_city').value = s.residence_city || '';
     document.getElementById('edit_res_street').value = s.residence_street || '';
-    document.getElementById('edit_gov').value = s.governorate;
     document.getElementById('edit_phone').value = s.phone;
     document.getElementById('edit_email').value = s.email;
     document.getElementById('edit_notes').value = s.notes || '';

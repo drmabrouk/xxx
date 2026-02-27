@@ -127,7 +127,7 @@ $all_requests = $is_official ? Workedia_DB::get_service_requests() : [];
                 <thead>
                     <tr>
                         <th>رقم الطلب</th>
-                        <?php if ($is_official): ?><th>العضو</th><th>المحافظة</th><?php endif; ?>
+                        <?php if ($is_official): ?><th>العضو</th><?php endif; ?>
                         <th>الخدمة</th>
                         <th>التاريخ</th>
                         <th>الحالة</th>
@@ -152,7 +152,6 @@ $all_requests = $is_official ? Workedia_DB::get_service_requests() : [];
                                             <?php echo esc_html($r->member_name); ?>
                                         </a>
                                     </td>
-                                    <td><?php echo esc_html(Workedia_Settings::get_governorates()[$r->governorate] ?? $r->governorate); ?></td>
                                 <?php endif; ?>
                                 <td><?php echo esc_html($r->service_name); ?></td>
                                 <td><?php echo date('Y-m-d', strtotime($r->created_at)); ?></td>
@@ -208,11 +207,10 @@ $all_requests = $is_official ? Workedia_DB::get_service_requests() : [];
                     <?php
                     $profile_fields = [
                         'name' => 'الاسم الكامل',
-                        'national_id' => 'الرقم القومي',
+                        'username' => 'اسم المستخدم',
                         'membership_number' => 'رقم العضوية',
                         'phone' => 'رقم الهاتف',
                         'email' => 'البريد الإلكتروني',
-                        'governorate' => 'المحافظة',
                         'facility_name' => 'اسم المنشأة'
                     ];
                     foreach ($profile_fields as $key => $label): ?>
@@ -417,7 +415,7 @@ $all_requests = $is_official ? Workedia_DB::get_service_requests() : [];
         if (s.selected_profile_fields) {
             const pFields = JSON.parse(s.selected_profile_fields);
             if (pFields.length > 0) {
-                container.append('<p style="font-size:12px; color:#666; margin-bottom:15px; background:#f0f4f8; padding:10px; border-radius:5px;">سيتم سحب بياناتك الشخصية (الاسم، الرقم القومي، إلخ) تلقائياً من ملفك الشخصي لإدراجها في المستند.</p>');
+                container.append('<p style="font-size:12px; color:#666; margin-bottom:15px; background:#f0f4f8; padding:10px; border-radius:5px;">سيتم سحب بياناتك الشخصية (الاسم، اسم المستخدم، إلخ) تلقائياً من ملفك الشخصي لإدراجها في المستند.</p>');
             }
         }
 

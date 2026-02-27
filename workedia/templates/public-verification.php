@@ -11,7 +11,7 @@
                 <div class="workedia-form-group" style="margin-bottom: 0;">
                     <label class="workedia-label">نوع البحث:</label>
                     <select id="workedia-verify-type" class="workedia-select" style="background: #fff;">
-                        <option value="all">الرقم القومي / المستخدم</option>
+                        <option value="all">اسم المستخدم</option>
                         <option value="membership">رقم العضوية</option>
                         <option value="license">رقم رخصة المنشأة</option>
                         <option value="practice">رقم تصريح المزاولة</option>

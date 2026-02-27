@@ -20,20 +20,11 @@
             <tbody>
                 <?php
                 $surveys = $wpdb->get_results("SELECT * FROM {$wpdb->prefix}workedia_surveys ORDER BY created_at DESC");
-                $user = wp_get_current_user();
-                $is_administrator = in_array('administrator', (array)$user->roles);
-                $my_gov = get_user_meta($user->ID, 'workedia_governorate', true);
 
                 foreach ($surveys as $s):
                     $questions = json_decode($s->questions, true);
 
                     $resp_where = $wpdb->prepare("survey_id = %d", $s->id);
-                    if ($is_administrator && $my_gov) {
-                        $resp_where .= $wpdb->prepare(" AND (
-                            EXISTS (SELECT 1 FROM {$wpdb->prefix}usermeta um WHERE um.user_id = user_id AND um.meta_key = 'workedia_governorate' AND um.meta_value = %s)
-                            OR EXISTS (SELECT 1 FROM {$wpdb->prefix}workedia_members m WHERE m.wp_user_id = user_id AND m.governorate = %s)
-                        )", $my_gov, $my_gov);
-                    }
                     $responses_count = $wpdb->get_var("SELECT COUNT(*) FROM {$wpdb->prefix}workedia_survey_responses WHERE $resp_where");
                 ?>
                 <tr>
