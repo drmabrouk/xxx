@@ -359,7 +359,7 @@ $is_officer = $is_administrator;
 
 $active_tab = isset($_GET['workedia_tab']) ? sanitize_text_field($_GET['workedia_tab']) : 'summary';
 $is_restricted = $is_subscriber;
-if ($is_restricted && !in_array($active_tab, ['my-profile', 'member-profile', 'messaging', 'surveys'])) {
+if ($is_restricted && !in_array($active_tab, ['my-profile', 'member-profile', 'messaging'])) {
     $active_tab = 'my-profile';
 }
 
@@ -551,14 +551,6 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                     </li>
                 <?php endif; ?>
 
-                <?php if ($is_admin || $is_sys_admin || $is_administrator || $is_subscriber || $is_member): ?>
-                    <li class="workedia-sidebar-item <?php echo $active_tab == 'digital-services' ? 'workedia-active' : ''; ?>">
-                        <a href="<?php echo add_query_arg('workedia_tab', 'digital-services'); ?>" class="workedia-sidebar-link"><span class="dashicons dashicons-cloud"></span> الخدمات الرقمية</a>
-                    </li>
-                    <li class="workedia-sidebar-item <?php echo $active_tab == 'surveys' ? 'workedia-active' : ''; ?>">
-                        <a href="<?php echo add_query_arg('workedia_tab', 'surveys'); ?>" class="workedia-sidebar-link"><span class="dashicons dashicons-clipboard"></span> <?php echo $labels['tab_surveys']; ?></a>
-                    </li>
-                <?php endif; ?>
 
                 <?php if ($is_admin || $is_sys_admin || $is_administrator): ?>
                     <li class="workedia-sidebar-item <?php echo $active_tab == 'advanced-settings' ? 'workedia-active' : ''; ?>">
@@ -606,18 +598,6 @@ $greeting = ($hour >= 5 && $hour < 12) ? 'صباح الخير' : 'مساء ال�
                     break;
 
 
-                case 'surveys':
-                    if ($is_admin || $is_sys_admin || $is_administrator) {
-                        include WORKEDIA_PLUGIN_DIR . 'templates/admin-surveys.php';
-                    } elseif ($is_subscriber || $is_member) {
-                        // Members see only active surveys to participate
-                        include WORKEDIA_PLUGIN_DIR . 'templates/public-dashboard-summary.php';
-                    }
-                    break;
-
-                case 'digital-services':
-                    include WORKEDIA_PLUGIN_DIR . 'templates/admin-services.php';
-                    break;
 
                 case 'advanced-settings':
                     if ($is_admin || $is_sys_admin || $is_administrator) {

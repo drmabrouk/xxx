@@ -76,62 +76,6 @@ class Workedia_Activator {
             KEY user_id (user_id)
         ) $charset_collate;\n";
 
-        // Surveys Table
-        $table_name = $wpdb->prefix . 'workedia_surveys';
-        $sql .= "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            title tinytext NOT NULL,
-            questions text NOT NULL,
-            recipients tinytext NOT NULL,
-            status enum('active', 'completed', 'cancelled') DEFAULT 'active',
-            created_by bigint(20),
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            PRIMARY KEY  (id),
-            KEY created_by (created_by)
-        ) $charset_collate;\n";
-
-        // Survey Responses Table
-        $table_name = $wpdb->prefix . 'workedia_survey_responses';
-        $sql .= "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            survey_id mediumint(9) NOT NULL,
-            user_id bigint(20) NOT NULL,
-            responses text NOT NULL,
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            PRIMARY KEY  (id),
-            KEY survey_id (survey_id),
-            KEY user_id (user_id)
-        ) $charset_collate;\n";
-
-        // Digital Services Table
-        $table_name = $wpdb->prefix . 'workedia_services';
-        $sql .= "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            name tinytext NOT NULL,
-            description text,
-            required_fields text,
-            selected_profile_fields text,
-            status enum('active', 'suspended') DEFAULT 'active',
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            PRIMARY KEY  (id)
-        ) $charset_collate;\n";
-
-        // Service Requests Table
-        $table_name = $wpdb->prefix . 'workedia_service_requests';
-        $sql .= "CREATE TABLE $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            service_id mediumint(9) NOT NULL,
-            member_id mediumint(9) NOT NULL,
-            request_data text NOT NULL,
-            status enum('pending', 'processing', 'approved', 'rejected') DEFAULT 'pending',
-            processed_by bigint(20),
-            created_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            updated_at datetime DEFAULT CURRENT_TIMESTAMP NOT NULL,
-            PRIMARY KEY  (id),
-            KEY service_id (service_id),
-            KEY member_id (member_id),
-            KEY status (status)
-        ) $charset_collate;\n";
 
         // Notification Templates Table
         $table_name = $wpdb->prefix . 'workedia_notification_templates';
@@ -334,11 +278,7 @@ class Workedia_Activator {
             'sm_members'                => 'workedia_members',
             'sm_messages'               => 'workedia_messages',
             'sm_logs'                   => 'workedia_logs',
-            'sm_surveys'                => 'workedia_surveys',
-            'sm_survey_responses'       => 'workedia_survey_responses',
             'sm_payments'               => 'workedia_payments',
-            'sm_services'               => 'workedia_services',
-            'sm_service_requests'       => 'workedia_service_requests',
             'sm_notification_templates' => 'workedia_notification_templates',
             'sm_notification_logs'      => 'workedia_notification_logs',
             'sm_documents'              => 'workedia_documents',
@@ -501,11 +441,6 @@ class Workedia_Activator {
                 'title' => 'أخبار ومقالات',
                 'content' => '[workedia_blog]',
                 'shortcode' => 'workedia_blog'
-            ),
-            'services' => array(
-                'title' => 'الخدمات الرقمية',
-                'content' => '[workedia_services]',
-                'shortcode' => 'workedia_services'
             ),
             'workedia-register' => array(
                 'title' => 'إنشاء حساب جديد',

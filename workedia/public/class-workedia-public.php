@@ -90,7 +90,6 @@ class Workedia_Public {
         add_shortcode('workedia_about', array($this, 'shortcode_about'));
         add_shortcode('workedia_contact', array($this, 'shortcode_contact'));
         add_shortcode('workedia_blog', array($this, 'shortcode_blog'));
-        add_shortcode('workedia_services', array($this, 'shortcode_services'));
 
         // Backward Compatibility Mapping
         add_shortcode('sm_login', array($this, 'shortcode_login'));
@@ -100,7 +99,6 @@ class Workedia_Public {
         add_shortcode('smabout', array($this, 'shortcode_about'));
         add_shortcode('smcontact', array($this, 'shortcode_contact'));
         add_shortcode('smblog', array($this, 'shortcode_blog'));
-        add_shortcode('services', array($this, 'shortcode_services'));
 
         add_filter('authenticate', array($this, 'custom_authenticate'), 20, 3);
         add_filter('auth_cookie_expiration', array($this, 'custom_auth_cookie_expiration'), 10, 3);
@@ -158,47 +156,6 @@ class Workedia_Public {
         exit;
     }
 
-    public function shortcode_services() {
-        $services = Workedia_DB::get_services(['status' => 'active']);
-        $is_logged_in = is_user_logged_in();
-        $login_url = home_url('/workedia-login');
-
-        ob_start();
-        ?>
-        <div class="workedia-public-page" dir="rtl">
-            <div class="workedia-page-header">
-                <h2>الخدمات الرقمية</h2>
-                <p>مجموعة من الخدمات الإلكترونية المتاحة لأعضاء Workedia</p>
-            </div>
-            <div class="workedia-content-container">
-                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 25px; margin-top: 50px;">
-                    <?php if (empty($services)): ?>
-                        <div style="grid-column: 1/-1; text-align: center; padding: 50px; color: #94a3b8;">لا توجد خدمات متاحة حالياً.</div>
-                    <?php else: ?>
-                        <?php foreach ($services as $s): ?>
-                            <div class="workedia-service-card" style="background: #fff; border: 1px solid var(--workedia-border-color); border-radius: 20px; padding: 30px; display: flex; flex-direction: column; transition: 0.3s; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);">
-                                <div style="width: 60px; height: 60px; background: var(--workedia-primary-color); border-radius: 15px; display: flex; align-items: center; justify-content: center; color: #fff; margin-bottom: 25px;">
-                                    <span class="dashicons dashicons-cloud" style="font-size: 30px; width: 30px; height: 30px;"></span>
-                                </div>
-                                <h3 style="margin: 0 0 15px 0; font-weight: 800; color: var(--workedia-dark-color); font-size: 1.4em;"><?php echo esc_html($s->name); ?></h3>
-                                <p style="font-size: 14px; color: #64748b; line-height: 1.8; margin-bottom: 25px; flex: 1;"><?php echo esc_html($s->description); ?></p>
-
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: auto; padding-top: 20px; border-top: 1px solid #f1f5f9;">
-                                    <?php if ($is_logged_in): ?>
-                                        <a href="<?php echo add_query_arg('workedia_tab', 'digital-services', home_url('/workedia-admin')); ?>" class="workedia-btn" style="width: auto; padding: 10px 25px; border-radius: 10px;">طلب الخدمة</a>
-                                    <?php else: ?>
-                                        <button onclick="window.location.href='<?php echo $login_url; ?>'" class="workedia-btn" style="width: auto; padding: 10px 25px; border-radius: 10px;">تسجيل الدخول للطلب</button>
-                                    <?php endif; ?>
-                                </div>
-                            </div>
-                        <?php endforeach; ?>
-                    <?php endif; ?>
-                </div>
-            </div>
-        </div>
-        <?php
-        return ob_get_clean();
-    }
 
     public function shortcode_home() {
         $workedia = Workedia_Settings::get_workedia_info();
@@ -1011,8 +968,7 @@ class Workedia_Public {
 
         global $wpdb;
         $tables = [
-            'workedia_members', 'workedia_logs', 'workedia_messages',
-            'workedia_surveys', 'workedia_survey_responses'
+            'workedia_members', 'workedia_logs', 'workedia_messages'
         ];
 
         // 1. Delete WordPress Users associated with members
@@ -1105,46 +1061,10 @@ class Workedia_Public {
             } else {
                 wp_send_json_error('فشل في إدراج البيانات في قاعدة البيانات: ' . $wpdb->last_error);
             }
-        } elseif ($table === 'services') {
-            unset($data['id']);
-            $res = $wpdb->insert("{$wpdb->prefix}workedia_services", $data);
-            if ($res) {
-                Workedia_Logger::log('استعادة بيانات', "تم استعادة الخدمة: " . $data['name']);
-                wp_send_json_success();
-            } else {
-                wp_send_json_error('فشل في إدراج البيانات في قاعدة البيانات: ' . $wpdb->last_error);
-            }
-        }
 
         wp_send_json_error('نوع الاستعادة غير مدعوم حالياً');
     }
 
-    public function ajax_add_survey() {
-        if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_admin_action', 'nonce');
-        $id = Workedia_DB::add_survey($_POST['title'], $_POST['questions'], $_POST['recipients'], get_current_user_id());
-        wp_send_json_success($id);
-    }
-
-    public function ajax_cancel_survey() {
-        if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_admin_action', 'nonce');
-        global $wpdb;
-        $wpdb->update("{$wpdb->prefix}workedia_surveys", ['status' => 'cancelled'], ['id' => intval($_POST['id'])]);
-        wp_send_json_success();
-    }
-
-    public function ajax_submit_survey_response() {
-        if (!is_user_logged_in()) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_survey_action', 'nonce');
-        Workedia_DB::save_survey_response(intval($_POST['survey_id']), get_current_user_id(), json_decode(stripslashes($_POST['responses']), true));
-        wp_send_json_success();
-    }
-
-    public function ajax_get_survey_results() {
-        if (!is_user_logged_in()) wp_send_json_error('Unauthorized');
-        wp_send_json_success(Workedia_DB::get_survey_results(intval($_GET['id'])));
-    }
 
     public function ajax_update_profile() {
         if (!is_user_logged_in()) wp_send_json_error('Unauthorized');
@@ -1240,57 +1160,6 @@ class Workedia_Public {
         wp_send_json_success();
     }
 
-    public function ajax_add_service() {
-        if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_admin_action', 'nonce');
-
-        // Validation
-        if (empty($_POST['name'])) wp_send_json_error('اسم الخدمة مطلوب');
-
-        $data = [
-            'name' => sanitize_text_field($_POST['name']),
-            'description' => sanitize_textarea_field($_POST['description']),
-            'status' => in_array($_POST['status'], ['active', 'suspended']) ? $_POST['status'] : 'active',
-            'required_fields' => stripslashes($_POST['required_fields'] ?? '[]'),
-            'selected_profile_fields' => stripslashes($_POST['selected_profile_fields'] ?? '[]')
-        ];
-
-        $res = Workedia_DB::add_service($data);
-        if ($res) wp_send_json_success();
-        else wp_send_json_error('Failed to add service');
-    }
-
-    public function ajax_update_service() {
-        if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_admin_action', 'nonce');
-        $id = intval($_POST['id']);
-
-        $data = [];
-        if (isset($_POST['name'])) {
-            if (empty($_POST['name'])) wp_send_json_error('اسم الخدمة مطلوب');
-            $data['name'] = sanitize_text_field($_POST['name']);
-        }
-        if (isset($_POST['description'])) $data['description'] = sanitize_textarea_field($_POST['description']);
-        if (isset($_POST['status'])) {
-            $data['status'] = in_array($_POST['status'], ['active', 'suspended']) ? $_POST['status'] : 'active';
-        }
-        if (isset($_POST['required_fields'])) $data['required_fields'] = stripslashes($_POST['required_fields']);
-        if (isset($_POST['selected_profile_fields'])) $data['selected_profile_fields'] = stripslashes($_POST['selected_profile_fields']);
-
-        if (Workedia_DB::update_service($id, $data)) wp_send_json_success();
-        else wp_send_json_error('Failed to update service');
-    }
-
-    public function ajax_get_services_html() {
-        if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_admin_action', 'nonce');
-
-        ob_start();
-        include WORKEDIA_PLUGIN_DIR . 'templates/admin-services.php';
-        $html = ob_get_clean();
-
-        wp_send_json_success(['html' => $html]);
-    }
 
     public function ajax_verify_document() {
         $val = sanitize_text_field($_POST['search_value'] ?? '');
@@ -1339,60 +1208,6 @@ class Workedia_Public {
         wp_send_json_success($results);
     }
 
-    public function ajax_delete_service() {
-        if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_admin_action', 'nonce');
-        if (Workedia_DB::delete_service(intval($_POST['id']))) wp_send_json_success();
-        else wp_send_json_error('Failed to delete service');
-    }
-
-    public function ajax_submit_service_request() {
-        if (!is_user_logged_in()) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_service_action', 'nonce');
-
-        $member_id = intval($_POST['member_id']);
-        if (!$this->can_access_member($member_id)) wp_send_json_error('Access denied');
-
-        $res = Workedia_DB::submit_service_request($_POST);
-        if ($res) {
-            Workedia_Logger::log('طلب خدمة رقمية', "العضو ID: $member_id طلب خدمة ID: {$_POST['service_id']}");
-            wp_send_json_success();
-        } else wp_send_json_error('Failed to submit request');
-    }
-
-    public function ajax_process_service_request() {
-        if (!current_user_can('manage_options')) wp_send_json_error('Unauthorized');
-        check_ajax_referer('workedia_admin_action', 'nonce');
-
-        $id = intval($_POST['id']);
-        $status = sanitize_text_field($_POST['status']);
-
-        global $wpdb;
-        $req = $wpdb->get_row($wpdb->prepare("SELECT * FROM {$wpdb->prefix}workedia_service_requests WHERE id = %d", $id));
-        if (!$req) wp_send_json_error('Request not found');
-
-        $res = Workedia_DB::update_service_request_status($id, $status);
-        if ($res) {
-             wp_send_json_success();
-        } else wp_send_json_error('Failed to process request');
-    }
-
-    public function ajax_export_survey_results() {
-        if (!current_user_can('manage_options')) wp_die('Unauthorized');
-        $id = intval($_GET['id']);
-        $results = Workedia_DB::get_survey_results($id);
-        header('Content-Type: text/csv');
-        header('Content-Disposition: attachment; filename="survey-'.$id.'.csv"');
-        $out = fopen('php://output', 'w');
-        fputcsv($out, ['Question', 'Answer', 'Count']);
-        foreach ($results as $r) {
-            foreach ($r['answers'] as $ans => $count) {
-                fputcsv($out, [$r['question'], $ans, $count]);
-            }
-        }
-        fclose($out);
-        exit;
-    }
 
     public function handle_form_submission() {
         if (isset($_POST['workedia_import_members_csv'])) {
