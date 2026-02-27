@@ -83,6 +83,7 @@ class Workedia_Public {
     public function register_shortcodes() {
         // New Shortcodes
         add_shortcode('workedia_login', array($this, 'shortcode_login'));
+        add_shortcode('workedia_register', array($this, 'shortcode_register'));
         add_shortcode('workedia_admin', array($this, 'shortcode_admin_dashboard'));
         add_shortcode('workedia_verify', array($this, 'shortcode_verify'));
         add_shortcode('workedia_home', array($this, 'shortcode_home'));
@@ -145,6 +146,16 @@ class Workedia_Public {
     public function shortcode_verify() {
         ob_start();
         include WORKEDIA_PLUGIN_DIR . 'templates/public-verification.php';
+        return ob_get_clean();
+    }
+
+    public function shortcode_register() {
+        if (is_user_logged_in()) {
+            wp_redirect(home_url('/workedia-admin'));
+            exit;
+        }
+        ob_start();
+        include WORKEDIA_PLUGIN_DIR . 'templates/public-registration.php';
         return ob_get_clean();
     }
 
@@ -372,7 +383,8 @@ class Workedia_Public {
         $output .= $form;
 
         $output .= '<div class="workedia-login-footer-links" style="grid-template-columns: 1fr;">';
-        $output .= '<a href="javascript:void(0)" onclick="workediaToggleActivation()" class="workedia-footer-btn">تفعيل حساب</a>';
+        $output .= '<a href="'.home_url('/workedia-register').'" class="workedia-footer-btn">إنشاء حساب جديد</a>';
+        $output .= '<a href="javascript:void(0)" onclick="workediaToggleActivation()" class="workedia-footer-btn" style="margin-top:10px;">تفعيل حساب موجود</a>';
         $output .= '<a href="javascript:void(0)" onclick="workediaToggleRecovery()" style="color: #64748b; font-size: 12px; text-decoration: none; text-align: center; margin-top: 10px;">نسيت كلمة المرور؟</a>';
         $output .= '</div>';
 
@@ -1534,6 +1546,8 @@ class Workedia_Public {
         else wp_send_json_error('Failed to save template');
     }
 
+
+
     public function ajax_activate_account_final() {
         $username = sanitize_text_field($_POST['username'] ?? '');
         $membership_number = sanitize_text_field($_POST['membership_number'] ?? '');
@@ -1641,6 +1655,123 @@ class Workedia_Public {
         $alert_id = intval($_POST['alert_id']);
         if (Workedia_DB::acknowledge_alert($alert_id, get_current_user_id())) wp_send_json_success();
         else wp_send_json_error('Failed to acknowledge alert');
+    }
+
+    public function ajax_check_username_email() {
+        $username = sanitize_user($_POST['username'] ?? '');
+        $email = sanitize_email($_POST['email'] ?? '');
+
+        if (!empty($username) && username_exists($username)) {
+            wp_send_json_error(['field' => 'username', 'message' => 'اسم المستخدم هذا مستخدم بالفعل.']);
+        }
+
+        if (!empty($email) && email_exists($email)) {
+            wp_send_json_error(['field' => 'email', 'message' => 'البريد الإلكتروني هذا مسجل بالفعل.']);
+        }
+
+        wp_send_json_success();
+    }
+
+    public function ajax_register_send_otp() {
+        $email = sanitize_email($_POST['email'] ?? '');
+        if (empty($email) || !is_email($email)) {
+            wp_send_json_error('يرجى إدخال بريد إلكتروني صحيح.');
+        }
+
+        if (email_exists($email)) {
+            wp_send_json_error('البريد الإلكتروني هذا مسجل بالفعل.');
+        }
+
+        $otp = sprintf("%06d", mt_rand(1, 999999));
+        set_transient('workedia_reg_otp_' . md5($email), $otp, 15 * MINUTE_IN_SECONDS);
+
+        $workedia = Workedia_Settings::get_workedia_info();
+        $subject = "رمز التحقق الخاص بك - " . $workedia['workedia_name'];
+        $message = "رمز التحقق الخاص بك لإتمام عملية التسجيل هو: " . $otp . "\nهذا الرمز صالح لمدة 15 دقيقة.";
+
+        wp_mail($email, $subject, $message);
+
+        wp_send_json_success('تم إرسال رمز التحقق إلى بريدك الإلكتروني.');
+    }
+
+    public function ajax_register_verify_otp() {
+        $email = sanitize_email($_POST['email'] ?? '');
+        $otp = sanitize_text_field($_POST['otp'] ?? '');
+
+        $saved_otp = get_transient('workedia_reg_otp_' . md5($email));
+
+        if ($saved_otp && $saved_otp === $otp) {
+            delete_transient('workedia_reg_otp_' . md5($email));
+            set_transient('workedia_reg_verified_' . md5($email), true, 30 * MINUTE_IN_SECONDS);
+            wp_send_json_success('تم التحقق بنجاح.');
+        } else {
+            wp_send_json_error('رمز التحقق غير صحيح أو منتهي الصلاحية.');
+        }
+    }
+
+    public function ajax_register_complete() {
+        $data = $_POST;
+        $email = sanitize_email($data['email'] ?? '');
+
+        if (!get_transient('workedia_reg_verified_' . md5($email))) {
+            wp_send_json_error('يرجى التحقق من البريد الإلكتروني أولاً.');
+        }
+
+        $username = sanitize_user($data['username']);
+        $password = $data['password'];
+
+        if (username_exists($username)) wp_send_json_error('اسم المستخدم موجود مسبقاً.');
+        if (email_exists($email)) wp_send_json_error('البريد الإلكتروني مسجل بالفعل.');
+
+        $user_id = wp_insert_user([
+            'user_login' => $username,
+            'user_email' => $email,
+            'user_pass' => $password,
+            'display_name' => sanitize_text_field($data['first_name'] . ' ' . $data['last_name']),
+            'role' => 'subscriber'
+        ]);
+
+        if (is_wp_error($user_id)) {
+            wp_send_json_error($user_id->get_error_message());
+        }
+
+        update_user_meta($user_id, 'first_name', sanitize_text_field($data['first_name']));
+        update_user_meta($user_id, 'last_name', sanitize_text_field($data['last_name']));
+        update_user_meta($user_id, 'workedia_account_status', 'active');
+
+        $member_data = [
+            'username' => $username,
+            'first_name' => sanitize_text_field($data['first_name']),
+            'last_name' => sanitize_text_field($data['last_name']),
+            'gender' => sanitize_text_field($data['gender']),
+            'year_of_birth' => intval($data['year_of_birth']),
+            'email' => $email,
+            'wp_user_id' => $user_id,
+            'membership_status' => 'active'
+        ];
+
+        $member_id = Workedia_DB::add_member_record($member_data);
+
+        // Handle Profile Image
+        if (!empty($_FILES['profile_image']['name'])) {
+            require_once(ABSPATH . 'wp-admin/includes/file.php');
+            require_once(ABSPATH . 'wp-admin/includes/image.php');
+            require_once(ABSPATH . 'wp-admin/includes/media.php');
+
+            $attachment_id = media_handle_upload('profile_image', 0);
+            if (!is_wp_error($attachment_id)) {
+                $photo_url = wp_get_attachment_url($attachment_id);
+                Workedia_DB::update_member_photo($member_id, $photo_url);
+            }
+        }
+
+        delete_transient('workedia_reg_verified_' . md5($email));
+
+        // Auto login
+        wp_set_current_user($user_id);
+        wp_set_auth_cookie($user_id);
+
+        wp_send_json_success(['redirect_url' => home_url('/workedia-admin')]);
     }
 
 

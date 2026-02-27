@@ -94,6 +94,10 @@ class Workedia {
         $this->loader->add_action('wp_ajax_workedia_save_alert', $plugin_public, 'ajax_save_alert');
         $this->loader->add_action('wp_ajax_workedia_delete_alert', $plugin_public, 'ajax_delete_alert');
         $this->loader->add_action('wp_ajax_workedia_acknowledge_alert', $plugin_public, 'ajax_acknowledge_alert');
+        $this->loader->add_action('wp_ajax_nopriv_workedia_check_username_email', $plugin_public, 'ajax_check_username_email');
+        $this->loader->add_action('wp_ajax_nopriv_workedia_register_send_otp', $plugin_public, 'ajax_register_send_otp');
+        $this->loader->add_action('wp_ajax_nopriv_workedia_register_verify_otp', $plugin_public, 'ajax_register_verify_otp');
+        $this->loader->add_action('wp_ajax_nopriv_workedia_register_complete', $plugin_public, 'ajax_register_complete');
         $this->loader->add_action('workedia_daily_maintenance', 'Workedia_DB', 'delete_expired_messages');
         $this->loader->add_action('workedia_daily_maintenance', 'Workedia_Notifications', 'run_daily_checks');
     }

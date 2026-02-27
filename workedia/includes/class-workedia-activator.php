@@ -24,6 +24,7 @@ class Workedia_Activator {
             first_name tinytext NOT NULL,
             last_name tinytext NOT NULL,
             gender enum('male', 'female') DEFAULT 'male',
+            year_of_birth int,
             residence_street text,
             residence_city tinytext,
             membership_number tinytext,
@@ -505,6 +506,11 @@ class Workedia_Activator {
                 'title' => 'الخدمات الرقمية',
                 'content' => '[workedia_services]',
                 'shortcode' => 'workedia_services'
+            ),
+            'workedia-register' => array(
+                'title' => 'إنشاء حساب جديد',
+                'content' => '[workedia_register]',
+                'shortcode' => 'workedia_register'
             )
         );
 
