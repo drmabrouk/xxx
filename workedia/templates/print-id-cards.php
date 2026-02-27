@@ -66,7 +66,7 @@
                     <?php endif; ?>
                 </div>
                 <div class="info">
-                    <p><strong>العضو:</strong> <?php echo esc_html($s->name); ?></p>
+                    <p><strong>العضو:</strong> <?php echo esc_html($s->first_name . ' ' . $s->last_name); ?></p>
                     <p><strong>اسم المستخدم:</strong> <?php echo esc_html($s->username); ?></p>
                 </div>
                 <div class="barcode">

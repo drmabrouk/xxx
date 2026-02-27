@@ -206,7 +206,8 @@ $all_requests = $is_official ? Workedia_DB::get_service_requests() : [];
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
                     <?php
                     $profile_fields = [
-                        'name' => 'الاسم الكامل',
+                        'first_name' => 'الاسم الأول',
+                        'last_name' => 'اسم العائلة',
                         'username' => 'اسم المستخدم',
                         'membership_number' => 'رقم العضوية',
                         'phone' => 'رقم الهاتف',

@@ -3,7 +3,7 @@
 $request_id = intval($_GET['id']);
 global $wpdb;
 $req = $wpdb->get_row($wpdb->prepare("
-    SELECT r.*, s.name as service_name, s.description as service_desc, s.selected_profile_fields, m.name as member_name, m.username, m.membership_number, m.phone, m.email, m.facility_name
+    SELECT r.*, s.name as service_name, s.description as service_desc, s.selected_profile_fields, m.first_name, m.last_name, CONCAT(m.first_name, ' ', m.last_name) as member_name, m.username, m.membership_number, m.phone, m.email, m.facility_name
     FROM {$wpdb->prefix}workedia_service_requests r
     JOIN {$wpdb->prefix}workedia_services s ON r.service_id = s.id
     JOIN {$wpdb->prefix}workedia_members m ON r.member_id = m.id
@@ -61,7 +61,8 @@ $data = json_decode($req->request_data, true);
         <?php
         $pFields = json_decode($req->selected_profile_fields, true) ?: [];
         $profile_map = [
-            'name' => ['label' => 'الاسم الكامل', 'value' => $req->member_name],
+            'first_name' => ['label' => 'الاسم الأول', 'value' => $req->first_name],
+            'last_name' => ['label' => 'اسم العائلة', 'value' => $req->last_name],
             'username' => ['label' => 'اسم المستخدم', 'value' => $req->username],
             'membership_number' => ['label' => 'رقم العضوية', 'value' => $req->membership_number],
             'phone' => ['label' => 'رقم الهاتف', 'value' => $req->phone],

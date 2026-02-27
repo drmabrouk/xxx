@@ -41,15 +41,6 @@ class Workedia_Admin {
 
         add_submenu_page(
             'workedia-dashboard',
-            'إعدادات النظام',
-            'إعدادات النظام',
-            'manage_options',
-            'workedia-settings',
-            array($this, 'display_settings')
-        );
-
-        add_submenu_page(
-            'workedia-dashboard',
             'الإعدادات المتقدمة',
             'الإعدادات المتقدمة',
             'manage_options',
@@ -118,7 +109,7 @@ class Workedia_Admin {
             }
             Workedia_Settings::save_labels($labels);
 
-            wp_redirect(add_query_arg(['workedia_tab' => 'global-settings', 'sub' => 'init', 'settings_saved' => 1], wp_get_referer()));
+            wp_redirect(add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'init', 'settings_saved' => 1], wp_get_referer()));
             exit;
         }
 
@@ -138,7 +129,7 @@ class Workedia_Admin {
                 'table_style' => sanitize_text_field($_POST['table_style']),
                 'button_style' => sanitize_text_field($_POST['button_style'])
             ));
-            wp_redirect(add_query_arg(['workedia_tab' => 'global-settings', 'sub' => 'design', 'settings_saved' => 1], wp_get_referer()));
+            wp_redirect(add_query_arg(['workedia_tab' => 'advanced-settings', 'sub' => 'design', 'settings_saved' => 1], wp_get_referer()));
             exit;
         }
 

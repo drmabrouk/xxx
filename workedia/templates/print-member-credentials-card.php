@@ -50,7 +50,7 @@ if (empty($members_to_print) || !$members_to_print[0]) wp_die('Member(s) not fou
                 <div style="font-size: 14px; font-weight: 700;"><?php echo esc_html($workedia['workedia_name']); ?></div>
             </div>
             <div class="card-body">
-                <div class="member-name"><?php echo esc_html($member->name); ?></div>
+                <div class="member-name"><?php echo esc_html($member->first_name . ' ' . $member->last_name); ?></div>
 
                 <div class="cred-box">
                     <div class="cred-label">اسم المستخدم:</div>
