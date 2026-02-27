@@ -128,6 +128,7 @@ class Workedia_DB {
             'first_name' => $first_name,
             'last_name' => $last_name,
             'gender' => sanitize_text_field($data['gender'] ?? 'male'),
+            'year_of_birth' => intval($data['year_of_birth'] ?? 0),
             'residence_street' => sanitize_textarea_field($data['residence_street'] ?? ''),
             'residence_city' => sanitize_text_field($data['residence_city'] ?? ''),
             'membership_number' => sanitize_text_field($data['membership_number'] ?? ''),
@@ -153,13 +154,34 @@ class Workedia_DB {
         return $id;
     }
 
+    public static function add_member_record($data) {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'workedia_members';
+
+        $insert_data = array(
+            'username' => sanitize_text_field($data['username']),
+            'first_name' => sanitize_text_field($data['first_name']),
+            'last_name' => sanitize_text_field($data['last_name']),
+            'gender' => sanitize_text_field($data['gender'] ?? 'male'),
+            'year_of_birth' => intval($data['year_of_birth'] ?? 0),
+            'email' => sanitize_email($data['email']),
+            'wp_user_id' => intval($data['wp_user_id']),
+            'membership_status' => sanitize_text_field($data['membership_status'] ?? 'active'),
+            'registration_date' => current_time('Y-m-d'),
+            'sort_order' => self::get_next_sort_order()
+        );
+
+        $wpdb->insert($table_name, $insert_data);
+        return $wpdb->insert_id;
+    }
+
     public static function update_member($id, $data) {
         global $wpdb;
         $table_name = $wpdb->prefix . 'workedia_members';
 
         $update_data = array();
         $fields = [
-            'username', 'first_name', 'last_name', 'gender',
+            'username', 'first_name', 'last_name', 'gender', 'year_of_birth',
             'residence_street', 'residence_city', 'membership_number',
             'membership_start_date', 'membership_expiration_date',
             'membership_status', 'email', 'phone', 'alt_phone', 'notes'
